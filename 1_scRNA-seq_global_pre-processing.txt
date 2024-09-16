@@ -1,0 +1,245 @@
+
+library(Seurat)
+library(future)
+library(ggplot2)
+library(cowplot)
+library(patchwork) 
+options(bitmapType='cairo')
+library(grid)
+library(gridExtra)
+library(ggExtra)
+library(SoupX)
+library(dplyr)
+library(magrittr)
+library(stringr)
+library(RColorBrewer)
+setwd("/rds/projects/c/croftap-1003568/analysis/setup_repeat_2/")
+
+### set graph graphics
+formplot <- list(RotatedAxis(), FontSize("9"), theme(axis.title.x=element_blank(), axis.title.y=element_blank()), scale_color_gradient2())
+sparseplot <- list(NoAxes(), NoLegend())
+thin <- theme(axis.title.x=element_blank(), axis.title.y=element_blank())
+
+data.10x = list()
+dirs <- list.dirs("/rds/projects/c/croftap-1003568/analysis/setup_repeat/all", recursive = FALSE)
+
+samples <-sub('/rds/projects/c/croftap-1003568/analysis/setup_repeat/all/', '', dirs)
+
+#1 copy files, then run loop to make seurat list
+
+for (i in 1:length(dirs)) {
+  data.10x[[i]] = load10X(dataDir =dirs[[i]])
+  data.10x[[i]] = autoEstCont(data.10x[[i]])
+  data.10x[[i]] = adjustCounts(data.10x[[i]], roundToInt=T )
+  data.10x[[i]] = CreateSeuratObject(counts = data.10x[[i]], min.cells=3, min.features=200, project=samples[i]);
+  data.10x[[i]][["percent.mt"]] = PercentageFeatureSet(object=data.10x[[i]], pattern = "^MT-") 
+  }
+
+names(data.10x) <- samples
+
+#2- add protein assay data
+
+for (i in 1:length(dirs)) {
+counts <- Read10X(data.dir =paste0(dirs[[i]], "/filtered_feature_bc_matrix"))
+data.10x[[i]][["Protein"]] <- CreateAssayObject(counts$`Antibody Capture`[,colnames(data.10x[[i]])])
+DefaultAssay(data.10x[[i]]) <- "Protein"
+data.10x[[i]] <- NormalizeData(data.10x[[i]])
+DefaultAssay(data.10x[[i]]) <- "RNA"
+}
+
+#assign unfiltered barcodes as row.names to scrublet files, this code creates the object with each barcode file, reads it in, gets the doublet file, 
+#checks the nrows of both are the same, assigns row names, removes extra column, assigns column name
+
+locate <- "/rds/projects/c/croftap-1003568/analysis/all_doublet_scores/"
+samnum <- gsub("s", "", samples)
+doub.scores <- list()
+
+for (i in 1:length(samnum)) {
+  barcodes <- read.csv(file=paste0("/rds/projects/c/croftap-1003568/analysis/setup_repeat/all-s/", samples[i], "/filtered_feature_bc_matrix/barcodes.tsv.gz"), header=F)
+  doub.scores[[i]] <- read.csv(file=paste0(locate, "doublet_scores_", samnum[i], "df.csv"))
+  print(nrow(doub.scores[[i]])==nrow(barcodes))
+  row.names(doub.scores[[i]]) <- barcodes$V1
+  data.10x[[i]] <- AddMetaData(data.10x[[i]], doub.scores[[i]]$X0, col.name="scrublet_score")
+  }
+
+#################################################################
+
+# Remove cells with a TCR and BCR (data not provided for this step)
+#for (i in 1:length(samnum)) {
+ # bcrt <- data.10x[[i]]@meta.data
+#  bcrt$check <- !is.na(bcrt$T_clonotype_id) & !is.na(bcrt$B_clonotype_id)
+#  print(table(bcrt$check))
+#  bcrt <- bcrt[bcrt$check == FALSE,]
+#  bcrt$barcodes <- row.names(bcrt)
+#  data.10x[[i]] <- data.10x[[i]][,colnames(data.10x[[i]]) %in% bcrt$barcodes]
+#  print(table(!is.na(data.10x[[i]]$T_clonotype_id) & !is.na(data.10x[[i]]$B_clonotype_id)))
+#  rm(bcrt)
+# }
+
+#################################################################
+
+# Subset cells with extreme protein counts- only SF and blood have CITE-seq data
+pattern <- "(_B|_SF)$"
+filtered_names <- grep(pattern, names(data.10x), value = TRUE)
+
+for (i in filtered_names) {
+    data.10x[[i]] <- subset(x = data.10x[[i]], nCount_Protein < 10000) }
+
+#################################################################
+
+for (i in 1:length(data.10x)) {
+  data.10x[[i]]<-subset(x = data.10x[[i]], subset = nFeature_RNA > 200 & nFeature_RNA < 7000 & scrublet_score < 0.25)
+  data.10x[[i]] =NormalizeData(object = data.10x[[i]]);
+  data.10x[[i]] =ScaleData(object = data.10x[[i]]);
+  data.10x[[i]] =FindVariableFeatures(object = data.10x[[i]], selection.method = "vst")
+  data.10x[[i]] =RunPCA(object = data.10x[[i]], verbose = FALSE)
+  data.10x[[i]] =RunUMAP(data.10x[[i]], dims = 1:20)
+}
+
+all_anchors <- FindIntegrationAnchors(object.list = data.10x, reduction = "rpca", dims = 1:30, anchor.features = 2000)
+PBMC1 <- IntegrateData(anchorset = all_anchors, dims = 1:30)
+PBMC1 <- ScaleData(PBMC1, verbose = FALSE)
+PBMC1 <- RunPCA(PBMC1, verbose = FALSE)
+PBMC1 <- RunUMAP(PBMC1, dims = 1:30)
+DimPlot(PBMC1, group.by="orig.ident")
+PBMC1 <- FindNeighbors(PBMC1, reduction= "pca", dims = 1:30, verbose = T)
+PBMC1 <- FindClusters(PBMC1, resolution = c(0.1), graph.name = "integrated_snn")
+DimPlot(PBMC1, group.by = "integrated_snn_res.0.1", label = T, cols = colorRampPalette(brewer.pal(12, "Set3"))(20)) & NoLegend()
+
+DefaultAssay(PBMC1) <-"RNA"
+VlnPlot(PBMC1, features=c("CHST11", "PRKCH", "RABGAP1L", "percent.mt"), pt.size=0, ncol=2)
+VlnPlot(PBMC1, features=c("percent.mt"), pt.size=0, y.max=50) + geom_hline(yintercept=c(12.5, 35), linetype="dashed", color = "blue")
+
+#format ILC barcodes to create a dataframe where barcode and sample number are provided
+Idents(PBMC1) <- "integrated_snn_res.0.1"
+ilc.barcode <- as.data.frame(WhichCells(PBMC1, idents=5))
+tail(ilc.barcode)
+colnames(ilc.barcode) <- "sample"
+ilc.barcode$samnum <- ilc.barcode$sample
+ilc.barcode$samnum <- gsub("(.*)_", "", ilc.barcode$samnum)
+ilc.barcode$sample <- gsub("_.*", "", ilc.barcode$sample)
+write.csv(ilc.barcode, file = "/rds/projects/c/croftap-1003568/analysis/setup_repeat_2/nCount10000_ilc-barcodes.csv")
+
+ilc <- subset(PBMC1, idents=5)
+check <- subset(ilc, subset = percent.mt > 20)
+
+#################################################################
+
+# subset separately and merge
+for (i in length(data.10x)) {
+  ilc.obj <- ilc.barcode[ilc.barcode$samnum == i, 1]
+  ilc <- data.10x[[i]][,colnames(data.10x[[i]]) %in% ilc.obj]
+  ilc <- subset(x=ilc, subset = percent.mt < 20)
+  evthin <- data.10x[[i]][,!(colnames(data.10x[[i]]) %in% ilc.obj)]
+  evthin <- subset(x=evthin, subset = percent.mt < 12.5)
+  data.10x[[i]] <- merge(evthin, ilc)
+  data.10x[[i]] =NormalizeData(object = data.10x[[i]]);
+  data.10x[[i]] =ScaleData(object = data.10x[[i]]);
+  data.10x[[i]] =FindVariableFeatures(object = data.10x[[i]], selection.method = "vst")
+  data.10x[[i]] =RunPCA(object = data.10x[[i]], verbose = FALSE)
+}
+
+all_anchors <- FindIntegrationAnchors(object.list = data.10x, reduction = "rpca", dims = 1:30, anchor.features = 2000)
+PBMC1 <- IntegrateData(anchorset = all_anchors, dims = 1:30)
+PBMC1 <- ScaleData(PBMC1, verbose = FALSE)
+PBMC1 <- RunPCA(PBMC1, verbose = FALSE)
+rm(all_anchors, data.10x)
+
+# find PC that has <0.1% variance between it and the one before
+pct <- PBMC1[["pca"]]@stdev / sum(PBMC1[["pca"]]@stdev) * 100
+sort(which((pct[1:length(pct) - 1] - pct[2:length(pct)]) > 0.1), decreasing = T)[1] + 1 %>% return()
+sort(which((pct[1:length(pct) - 1] - pct[2:length(pct)]) > 0.05), decreasing = T)[1] + 1 %>% return()
+
+PBMC1 <- RunUMAP(PBMC1, dims = 1:30)
+PBMC1 <- FindNeighbors(PBMC1, reduction= "pca", dims = 1:30, verbose = T)
+res <- c(0.03, 0.05, 0.08, 0.1, 0.15)
+PBMC1 <- FindClusters(PBMC1, resolution = res, graph.name = "integrated_snn")
+
+#code for plotting multiple resolutions on one plot
+plot.list <- list()
+for (i in 1:length(res)) {
+  resg <- paste0("integrated_snn_res.", res[[i]])
+  plot.list[[i]] <- DimPlot(PBMC1, group.by = resg, label = T) & sparseplot
+}
+grid.arrange(grobs = plot.list, ncol=3) 
+
+VlnPlot(PBMC1, features=c("percent.mt","nCount_RNA", "nFeature_RNA", "nCount_Protein"), pt.size=0, ncol=2) 
+
+save.images(file="tidy-object")
+
+#################################################################
+
+DefaultAssay(PBMC1) <- "RNA"
+s.genes <- toupper(c("Mcm5", "Pcna", "Tym5", "Fen1", "Mcm2", "Mcm4", "Rrm1", "Ung", "Gins2", "Mcm6", "Cdca7", "Dtl", "Prim1", "Uhrf1", "Mlf1ip", "Hells", "Rfc2", "Rap2", "Nasp", "Rad51ap1", "Gmnn", "Wdr76", "Slbp", "Ccne2", "Ubr7", "Pold3", "Msh2", "Atad2", "Rad51", "Rrm2", "Cdc45", "Cdc6", "Exo1", "Tipin", "Dscc1", "Blm", " Casp8ap2", "Usp1", "Clspn", "Pola1", "Chaf1b", "Brip1", "E2f8"))
+g2m.genes <- toupper(c("Hmgb2", "Ddk1","Nusap1", "Ube2c", "Birc5", "Tpx2", "Top2a", "Ndc80", "Cks2", "Nuf2", "Cks1b", "Mki67", "Tmpo", " Cenpk", "Tacc3", "Fam64a", "Smc4", "Ccnb2", "Ckap2l", "Ckap2", "Aurkb", "Bub1", "Kif11", "Anp32e", "Tubb4b", "Gtse1", "kif20b", "Hjurp", "Cdca3", "Hn1", "Cdc20", "Ttk", "Cdc25c", "kif2c", "Rangap1", "Ncapd2", "Dlgap5", "Cdca2", "Cdca8", "Ect2", "Kif23", "Hmmr", "Aurka", "Psrc1", "Anln", "Lbr", "Ckap5", "Cenpe", "Ctcf", "Nek2", "G2e3", "Gas2l3", "Cbx5", "Cenpa"))
+
+PBMC1 <- CellCycleScoring(object = PBMC1,
+                            s.features = s.genes,
+                            g2m.features  = g2m.genes,
+                            set.ident = TRUE)
+
+ribo.genes <- grep(pattern = "(^RPL|^RPS|^MRP)", x = rownames(x = PBMC1@assays[["RNA"]]), value = TRUE)
+percent.ribo <- Matrix::colSums(PBMC1@assays[["RNA"]][ribo.genes, ])/Matrix::colSums(PBMC1@assays[["RNA"]])
+PBMC1[["percent.ribro"]] <- percent.ribo
+
+Hb.genes <- grep(pattern = "(^HBB|^HBA)", x = rownames(x = PBMC1@assays[["RNA"]]), value = TRUE)
+percent.Hb <- Matrix::colSums(PBMC1@assays[["RNA"]][Hb.genes, ])/Matrix::colSums(PBMC1@assays[["RNA"]])
+PBMC1[["percent.Hb"]] <- percent.Hb
+
+VlnPlot(PBMC1, features=c("percent.ribro","percent.Hb", "S.Score", "G2M.Score"), pt.size=0, ncol=2) 
+
+save.images(file="tidy-object")
+
+#################################################################
+
+#add meta-data
+PBMC1$patient <- PBMC1$orig.ident
+Idents(PBMC1) <- "patient" 
+PBMC1$patient <- gsub("\\D", '', PBMC1$patient)
+Idents(PBMC1) <- "patient"
+PBMC1$patient <- PBMC1@active.ident
+
+# Add specimen type
+PBMC1$orig.ident -> PBMC1$TYPE
+fluids <- c("B", "SF", "T")
+for(i in fluids) { PBMC1$TYPE[grepl(i, PBMC1$TYPE)] <- i}
+Idents(PBMC1) <- "TYPE" 
+PBMC1 <- RenameIdents(PBMC1, 'T' = "Tissue", 'B' = "Blood")
+PBMC1$TYPE <- PBMC1@active.ident
+unique(PBMC1$TYPE)
+
+# Add sample number
+Idents(PBMC1) <- "orig.ident"
+PBMC1 <- RenameIdents(PBMC1, "s9_1_B"="B91","s8_4_B"="B84","s9_5_B"="B95", "s9_1_SF"="SF91","s8_4_SF"="SF84","s9_5_SF"="SF95",
+  "s8_4_T"="T84","s8_8_T"="T88","s8_8_B"="B88","s8_8_SF"="SF88","s8_11_T"="T811","s8_11_B"="B811","s8_11_SF"="SF811",
+  "s9_5_T"="T95","s9_7_B"="B97","s9_7_SF"="SF97","s9_8_T"="T98","s9_8_B"="B98","s9_8_SF"="SF98",
+  "s8_14_T"="T814","s8_14_B"="B814","s8_14_SF"="SF814","s8_17_T"="T817","s8_17_B"="B817","s8_17_SF"="SF817","s9_6_T"="T96",
+  "s9_9_T"="T99","s9_10_T"="T910")
+PBMC1$sample <- PBMC1@active.ident
+unique(PBMC1$sample)
+
+
+b1 <- unlist(str_split('s9_1_B s8_4_B s9_5_B s9_1_SF s8_4_SF s9_5_SF', pattern=','))
+b2 <- str_split('8_4_T s8_4 s8_8_T s8_8_B s8_8_SF s8_11_T s8_11_B s8_11_SF s9_5_T s9_7_T s9_7_B s9_7_SF s9_8_T s9_8_B s9_8_SF', pattern=' ')
+b3 <- str_split('8_14_T s8_14_B s8_14_SF s8_17_T s8_17_B s8_17_SF s9_6_T s9_9_T s9_10_T', pattern=' ')
+
+# Add batch number
+Idents(PBMC1) <- "orig.ident"
+PBMC1 <- RenameIdents(PBMC1, "s9_1_B"="batch1","s8_4_B"="batch1","s9_5_B"="batch1", "s9_1_SF"="batch1","s8_4_SF"="batch1","s9_5_SF"="batch1",
+  "s8_4_T"="batch2","s8_8_T"="batch2","s8_8_B"="batch2","s8_8_SF"="batch2","s8_11_T"="batch2","s8_11_B"="batch2","s8_11_SF"="batch2","s9_5_T"="batch2","s9_7_B"="batch2","s9_7_SF"="batch2","s9_8_T"="batch2","s9_8_B"="batch2","s9_8_SF"="batch2",
+  "s8_14_T"="batch3","s8_14_B"="batch3","s8_14_SF"="batch3","s8_17_T"="batch3","s8_17_B"="batch3","s8_17_SF"="batch3","s9_6_T"="batch3","s9_9_T"="batch3","s9_10_T"="batch3")
+PBMC1$batch <- PBMC1@active.ident
+
+# Add age at consent
+Idents(PBMC1) <- "patient"
+PBMC1 <- RenameIdents(PBMC1, "97"="1.2", "99"="2.6", "910"="3.0", "95"="3.7", "96"="4.8", "91"="6.9", "98"="9.3", "817"="9.3", "811"="10.8", "814"="14.8", 
+                    "88"="15.7", "84"="15.8")
+PBMC1$age <- PBMC1@active.ident
+
+# Add disease duration
+Idents(PBMC1) <- "patient"
+PBMC1 <- RenameIdents(PBMC1, "95"="62", "84"="644", "91"="518", "811"="162", "88"="140", 
+                      "98"="2557", "97"="77", "814"="121", "817"="1348", "910"="87", "96"="311", "99"="269")
+PBMC1$onset <- PBMC1@active.ident
+
+#################################################################

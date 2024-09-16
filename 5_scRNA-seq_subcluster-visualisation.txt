@@ -1,0 +1,386 @@
+
+library(Seurat)
+library(ggplot2)
+library(knitr)
+library(stringr)
+library(tidyverse)
+library(dplyr)
+library(magrittr)
+library(grid)
+library(gridExtra)
+library(ggExtra)
+library(stringr)
+library(data.table)
+library(RColorBrewer)
+library(splitstackshape)
+library(pheatmap)
+library(gtable)
+
+library(gsfisher)
+library(ggfortify)
+library(DESeq2)
+library(ComplexHeatmap)
+library(circlize)
+library(data.table)
+library(cowplot)
+
+
+#################################################################
+
+# set graphics
+formplot <- list(RotatedAxis(), FontSize("8"), theme(axis.title.x=element_blank(), axis.title.y=element_blank()), scale_color_gradient2())
+colurs <- c(brewer.pal(8, "Set2"), brewer.pal(8, "Dark2"), brewer.pal(8, "Set1"), brewer.pal(8, "Paired"))
+
+#################################################################
+
+
+# Create UMAPS of the subclustered cells and CSV files of the subcluster barcode annotations
+
+load("/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/B-cells/2401_B-cell-object")
+PBMC1 -> Bcell
+DefaultAssay(Bcell) <- "RNA"
+Idents(Bcell) <- "label5"
+Bclust <- Bcell[["label5"]]
+
+load(file="/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/T-cells/2307-QC-CD4-CD8-NK_together/2307_CD4-CD8-NK-no_BC-final")
+PBMC1 -> Tcell
+DefaultAssay(Tcell) <- "RNA"
+Idents(Tcell) <- "simple8"
+Tclust <- Tcell[["simple8"]]
+
+load(file="/rds/projects/c/croftap-mapjagdata/CellDive/stromal-object")
+Idents(seurat_obj) <- "clusters2"
+DefaultAssay(seurat_obj) <- "RNA"
+FBclust <- seurat_obj[["clusters2"]]
+
+load(file="/rds/projects/c/croftap-mapjagdata/CellDive/myeloid-object")
+Idents(myel_h) <- "named2"
+DefaultAssay(myel_h) <- "RNA"
+MYclust <- myel_h[["named2"]]
+
+# Load global object to extract pDCs
+load(file="/rds/projects/c/croftap-1003568/analysis/setup_repeat_2/mt10_20-nc-protein-10000.rdata")
+pDCclust <- as.data.frame(PBMC1$label15) 
+try <- pclust %>% filter(pclust$`PBMC1$label15`=="plasmacytoid DCs")
+
+DimPlot(myel_h, group.by = "named2", cols=colurs, split.by="TYPE")
+DimPlot(Tcell, group.by = "simple8", cols=colurs, split.by="TYPE")
+DimPlot(Bcell, group.by = "label5", cols=colurs, split.by="TYPE")
+DimPlot(seurat_obj, group.by = "clusters2", cols=colurs)
+
+
+#################################################################
+#################################################################
+
+
+# Label main single-cell object with subcluster labels and remove NA values
+# Labelling for cycling myeloid cells (CyMclust) provided in code for scRNA-seq_finer_subclustering scripts
+
+clusters <- rbind(Tclust, Bclust, FBclust, MYclust, pDCclust, CyMclust)
+PBMC1 <- AddMetaData(PBMC1, clusters, col.name = "clusters2312")
+
+# Identify cells with NA identity
+cells_to_exclude <- which(is.na(PBMC1$clusters2312))
+PBMC1 <- subset(PBMC1, cells = -cells_to_exclude)
+cells_to_exclude <- which(PBMC1$clusters2312=="Likely Doublet")
+PBMC1 <- subset(PBMC1, cells = -cells_to_exclude)
+
+
+#################################################################
+#################################################################
+
+
+# Create plots of haematopoietic cells split by specimen type for subclusters  
+
+# B cells
+load("/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/B-cells/2401_B-cell-object")
+
+ptnum <- as.data.frame(table(PBMC1$label5, PBMC1$TYPE))
+ptnum <- ptnum %>% group_by(Var2) %>% mutate(percent =  Freq*100/sum(Freq))
+ptnum$Var2 <- factor(ptnum$Var2, levels=rev(c("Blood", "SF", "Tissue")))
+ptnum$Var1 <- factor(ptnum$Var1, levels=rev(c("IgD+IgM+ Naive B", "Transitional B", "PAX5+ Pro-B-like", "Memory B cells", "IgD+ GC-like B","GC-like Memory B", "Age-associated B cells", "Plasma cells", "Activated Plasma cells")))
+p1 <- ggplot(ptnum) + aes(x = Var1, y = percent, fill=Var2) + geom_bar(position="fill", stat="identity") +
+  labs(x="\n\n", y = "\nProportion of cluster\n") + 
+  ggtitle("\n") +
+  theme_bw() + theme(legend.title=element_blank()) +
+  scale_fill_manual(values=c("#A6761D", "steelblue3", "red2")) + RotatedAxis() + FontSize("8") +
+  coord_flip()
+
+#################################################################
+
+# T cell / NK cell / ILCs
+load(file="/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/T-cells/2307-QC-CD4-CD8-NK_together/2307_CD4-CD8-NK-no_BC-final")
+
+idents8 <- c("CD56-dim CD16+ NK", "CD4+ naive/central memory T", "CD8+ naive T","NK-like ILC1","Vdelta2 yd", "MAIT cells",  "IFNG+ NK","THEMIS+ IL7R+ ILC", "CD8+ GZMB+/GZMK+ memory T", "CD4+ KLRB1+ memory T",  "CD56+bright NK", "CXCL13+ TpH", "CD4+ FOXP3+ Tregs","Cycling T","CD8+ GZMK+ memory T", "Activated NK-like T")
+ptnum <- as.data.frame(table(PBMC1$simple8, PBMC1$TYPE)) 
+ptnum$Var1 <- factor(ptnum$Var1, levels=rev(idents8))
+ptnum <- ptnum %>% group_by(Var2) %>% mutate(percent =  Freq*100/sum(Freq))
+ptnum$Var2 <- factor(ptnum$Var2, levels=rev(c("Blood", "SF", "Tissue")))
+
+p2 <- ggplot(ptnum) + aes(x = Var1, y = percent, fill=Var2) + geom_bar(position="fill", stat="identity") +
+  labs(x="\n\n", y = "\nProportion of Specimen Type by Cluster\n") + 
+  ggtitle("\n") +
+  theme_bw() + theme(legend.title=element_blank()) +
+  scale_fill_manual(values=c("#A6761D", "steelblue3", "red2")) + RotatedAxis() + FontSize("8") +
+  coord_flip()
+
+#################################################################
+
+# Myeloid cells 
+load(file="/rds/projects/c/croftap-mapjagdata/CellDive/myeloid-object")
+ptnum <- as.data.frame(table(myel_h$named2, myel_h$TYPE))
+load(file="/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/Global/pDC-object")
+ptnum2 <- as.data.frame(table(pDC$clusters2312, pDC$TYPE))
+
+ptnum <- rbind(ptnum,ptnum2)
+ptnum <- ptnum %>% group_by(Var2) %>% mutate(percent =  Freq*100/sum(Freq))
+ptnum$Var2 <- factor(ptnum$Var2, levels=rev(c("Blood", "SF", "Tissue")))
+ptnum$Var1 <- factor(ptnum$Var1, levels=rev(c("S1008A+ Monocytes", "SLC8A1+ Myeloid cells", "IL1B+ Myeloid cells", "SPP1+ Macrophages", "MerTK+ Macrophages", "TCF7L2+ DCs", "Plasmacytoid DCs", "CD1C+ cDC2s", "CLEC9A+ cDC1s", "LAMP3+ DCs")))
+
+p3 <- ggplot(ptnum) + aes(x = Var1, y = percent, fill=Var2) + geom_bar(position="fill", stat="identity") +
+  labs(x="\n\n", y = "\nProportion of Specimen Type by Cluster\n") + 
+  ggtitle("\n") +
+  theme_bw() + theme(legend.title=element_blank()) +
+  scale_fill_manual(values=c("#A6761D", "steelblue3", "red2")) + RotatedAxis() + FontSize("8") +
+  coord_flip()
+
+grid.arrange(p1,p2,p3, nrow = 1)
+
+
+
+#################################################################
+#################################################################
+
+# Plot key markers of subclusters
+# T cell markers 
+
+Tell -> PBMC1
+Idents(PBMC1) <- "simple8"
+idents8 <- c("CD4+ naive/central memory T", "CD4+ KLRB1+ memory T", "CXCL13+ TpH", "CD4+ FOXP3+ Tregs", "2"="CD8+ naive T", "Activated NK-like T",
+             "CD8+ GZMK+ memory T", "CD8+ GZMB+/GZMK+ memory T", "Cycling T", "MAIT cells", "Vdelta2 yd", "CD56+bright NK", "IFNG+ NK","CD56-dim CD16+ NK",
+             "NK-like ILC1","THEMIS+ IL7R+ ILC")
+levels(PBMC1) <- rev(idents8)
+PBMC1$simple8 <- factor(PBMC1$simple8, levels=rev(idents8))
+
+keymm <- unlist(str_split('CD4,CCR7,IL7R,CXCL13,PDCD1,FOXP3,KLRC2,TRDV1,CD8A,GZMK,GZMB,IFNG,MKI67,TRAV1-2,TRDV2,GNLY,KLRF1,NCAM1,FCGR3A,ITGAE,RORA,BCL11B,THEMIS,TNF,CD3G,CD247,MTRNR2L12', pattern=','))
+DotPlot(PBMC1, features = keymm) + formplot
+
+Idents(PBMC1) <- "TYPE"
+citesub <- subset(PBMC1, idents=c("Blood", "SF"))
+DefaultAssay(citesub) <- "Protein"
+FeaturePlot(citesub, features=c("PTPRC.1", "PTPRC.2"), min.cutoff = "q10", max.cutoff = "q90")
+ 
+Idents(PBMC1) <- "TYPE"
+citesub <- subset(PBMC1, idents=c("Blood", "SF"))
+DefaultAssay(citesub) <- "Protein"
+FeaturePlot(citesub, features=c("PTPRC.1", "PTPRC.2"), min.cutoff = "q10", max.cutoff = "q90")
+
+#################################################################
+
+# B cell markers
+
+Bcell -> PBMC1
+Idents(PBMC1) <- "label5"
+DefaultAssay(PBMC1) <- "RNA"
+b.labels <- rev(c("Activated Plasma cells", "Plasma cells","GC-like Memory B",
+                  "IgD+ GC-like B", "Age-associated B cells", "Memory B cells",
+                  "PAX5+ Pro-B-like", "Transitional B", "IgD+IgM+ Naive B"))
+levels(PBMC1) <- b.labels
+
+togev <- unlist(str_split('FOSB,JUN,SOX5,XBP1,IGHG1,IGHG2,JCHAIN,IGHA1,NR4A1,BCL2A1,CD83,GPR183,ITGAX,FCRL4,SIGLEC10,MX1,IFITM1,COCH,CD44,EBF1,BACH2,PAX5,SOX4,MME,RAG1,TCL1A,IGHD', pattern=','))
+DotPlot(PBMC1, features = togev) + formplot & theme(legend.key.height=unit(0.2, "cm"), legend.text=element_text(size=8), legend.title=element_text(size=8))
+
+#################################################################
+
+# Myeloid markers
+
+Idents(myel_h) <- "named2"
+DefaultAssay(myel_h) <- "RNA"
+
+my_order <- c("SPP1+ Macrophages", "IL1B+ Myeloid cells", "MerTK+ Macrophages", "S100A8+ Monocytes", "SLC8A1+ Myeloid cells", "CLEC9A+ cDC1s","LAMP3+ DCs", "CD1C+ cDC2s", "TCF7L2+ DCs")
+levels(myel_h) <- rev(my_order)
+genes=c("SPP1", "FN1", "MARCO", "CXCL10", "IL1B", "NR4A1", "TNFAIP3", "MERTK", "SELENOP", "IGF1", "LYVE1", "MRC1", "S100A8", "S100A12", "FCN1", "SLC8A1", "ID2", "CLEC9A", "BATF3", "XCR1", "LAMP3", "CCR7", "CD1C" , "FCER1A", "CD86",  "TCF7L2", "IFITM1", "ITGAL")
+
+DotPlot(myel_h, features=genes) & formplot
+
+Idents(myel_h) <- "TYPE"
+citesub <- subset(myel_h, idents=c("Blood", "SF"))
+DefaultAssay(citesub) <- "Protein"
+FeaturePlot(citesub, features=c("CD1C.1", "CR1.1"), min.cutoff = "q10", max.cutoff = "q90", split.by="TYPE")
+
+#################################################################
+
+# Stromal markers
+
+fblev <- c("LL Fibroblasts","MMP+ Fibroblasts",  "POSTN+ Fibroblasts", "CD34+ Fibroblasts",  
+           "CXCL14+ Fibroblasts", "CXCL12+ Fibroblasts","SOX5+ Fibroblasts","Cycling Fibroblasts",
+           "Pericytes","KDR+ Arterial","Venous", "FLI1+ Capillary", "Lymphatics")
+levels(seurat_obj) <- rev(fblev)
+
+genes <- c("MMP3", "PRG4", "FN1", "CLU", "POSTN","MMP14", "COMP", "PI16", "DKK3", "MFAP5",
+           "CXCL14",  "CXCL12", "SFRP1", "SOX5", "CDH11", "RUNX1", 
+           "RORA", "MKI67", "TOP2A", "ACTA2", "TAGLN", "KDR",
+           "FABP4", "NOTCH4", "ACKR1", "CCL14", "VWF", "FLI1", "DOCK4", "PDPN", "LYVE1", "CCL21")
+DotPlot(seurat_obj, features=genes) & formplot
+
+
+#################################################################
+#################################################################
+
+
+# Identify stromal clusters biological pathway
+
+# Find differentially expressed markers between clusters
+markers_stroma <- FindAllMarkers(seurat_obj, only.pos = T, logfc.threshold = 1)
+
+bg_genes <- unique(markers_stroma$gene)
+index <- match(markers_stroma$gene, annotation_gs$gene_name)
+markers_stroma$ensembl <- annotation_gs$ensembl_id[index]
+FilteredGeneID <- bg_genes
+index <- match(FilteredGeneID, annotation_gs$gene_name)
+ensemblUni <- annotation_gs$ensembl_id[index]
+
+seurat_obj.res <- markers_stroma
+seurat_obj.res <- seurat_obj.res[!is.na(seurat_obj.res$ensembl),]
+ensemblUni <- na.omit(ensemblUni)
+
+# Find associated gene ontology pathways
+go.results <- runGO.all(results=seurat_obj.res,
+                        background_ids = ensemblUni, gene_id_col="ensembl", gene_id_type="ensembl", sample_col="cluster", 
+                        p_col="p_val_adj", p_threshold=0.05, species = "hs")
+
+go.results <- filterGenesets(go.results)
+go.results2 <- go.results[go.results$ontology =="BP",]
+
+# View top 30 pathways per cluster
+go.results.top <- go.results2 %>% group_by(cluster) %>% top_n(n=30, -p.val)
+
+sampleEnrichmentDotplot(go.results.top, selection_col = "description", 
+                        selected_genesets = unique(go.results.top$description), sample_id_col = "cluster", fill_var = "odds.ratio", 
+                        maxl=50, title="Go term",rotate_sample_labels = T,fill_colors = c("#d9f0a3", "#41ab5d", "#49006a"))
+
+# Select specific terms for visualisation
+goterm <- unique(unlist(str_split("GO:0048771 GO:0032680 GO:0002685 GO:0030199 GO:2000050 GO:0043567 GO:1902850 GO:0043534 GO:0002040 GO:0002576 GO:0022617 GO:0034109 GO:0006939 GO:0030199 GO:0042147 GO:0045766 GO:0034369 GO:0006119",pattern=" ")))
+include <- go.results.top[go.results.top$geneset_id %in% goterm,]
+include$geneset_id <- factor(include$geneset_id)
+fblev <- c("LL Fibroblasts","MMP+ Fibroblasts",  "POSTN+ Fibroblasts", "CD34+ Fibroblasts",  
+           "CXCL14+ Fibroblasts", "CXCL12+ Fibroblasts","SOX5+ Fibroblasts","Cycling Fibroblasts",
+           "KDR+ Arterial","Venous","Pericytes", "FLI1+ Capillary", "Lymphatics")
+
+include$cluster <- factor(include$cluster, levels=fblev)
+include <- arrange(include, cluster)
+sampleEnrichmentDotplot(include, selection_col = "description", selected_genesets = unique(include$description), sample_id_col = "cluster", fill_var = "odds.ratio", maxl=50, title="Go term",rotate_sample_labels = T)
+
+
+#################################################################
+#################################################################
+
+# Ligand receptor interactome analysis
+
+#devtools::install_github("jinworks/CellChat")
+
+library(CellChat)
+library(ggalluvial)
+library(patchwork)
+library(NMF)
+
+# Select out only tissue
+Idents(PBMC1) <- "TYPE"
+tissue <- subset(PBMC1, idents="Tissue")
+
+# CellChat pipeline
+data.input <- GetAssayData(tissue, assay = "RNA", slot = "data") # normalized data matrix
+labels <- Idents(tissue)
+meta_data_seurat <- tissue@meta.data
+meta_data_seurat <- meta_data_seurat %>% select(sample, clusters2312)
+cellchat <- createCellChat(object = data.input, coordinates=NULL, meta = meta_data_seurat, group.by = "clusters2312", datatype="RNA")
+levels(cellchat@idents) # show factor levels of the cell labels
+CellChatDB <- CellChatDB.human 
+showDatabaseCategory(CellChatDB)
+CellChatDB.use <- CellChatDB
+cellchat@DB <- CellChatDB.use
+
+cellchat <- subsetData(cellchat)
+cellchat <- identifyOverExpressedGenes(cellchat)
+cellchat <- identifyOverExpressedInteractions(cellchat)
+cellchat <- computeCommunProb(cellchat)
+cellchat <- filterCommunication(cellchat, min.cells = 30)
+cellchat <- computeCommunProbPathway(cellchat)
+cellchat <- aggregateNet(cellchat)
+groupSize <- as.numeric(table(cellchat@idents))
+
+selectK(cellchat, pattern = "outgoing")
+nPatterns = 6
+cellchat <- identifyCommunicationPatterns(cellchat, pattern = "outgoing", 
+                                          width=20, height=15,k = nPatterns)
+cellchat <- netAnalysis_computeCentrality(cellchat, slot.name = "netP") #the slot 'netP' means the inferred intercellular communication network of signaling pathways
+netAnalysis_signalingRole_scatter(cellchat, dot.size=c(2,6), font.size=14, do.label=T)
+  
+
+#################################################################
+#################################################################
+
+library(grid)
+library(gridExtra)
+
+# Assess the correlation between cell type proportion in tissue and age
+
+Idents(tissue) <- "clusters2312"
+ptnum2 <- as.data.frame(table(tissue$patient, tissue@active.ident))
+ptnum2 <- group_by(ptnum2, Var1) %>% mutate(percent = Freq*100/sum(Freq))
+age <- as.data.frame(table(tissue$patient, tissue$age))  %>% distinct()
+age <- age[age$Freq > 0,1:2]
+ptnum2 <- merge(ptnum2, age, by="Var1")
+
+image.list <- list()
+summary2 <- data.frame()
+
+iden1 <- unique(tissue@active.ident)
+
+for (i in 1:length(iden1)) {
+  iden <- iden1[[i]]
+  selec <- ptnum2[ptnum2$Var2.x %in% iden, ]
+  selec$Var2.y <- as.numeric(as.character(selec$Var2.y))
+  coro <- cor.test(selec$Var2.y, selec$percent, method="spearman")
+  labo <- paste0("\nr2=",round(coro$estimate, digits=2), "\n", "p=", round(coro$p.value, digits=3))
+  image.list[[i]] <- ggplot(selec, aes(x=Var2.y, y=percent)) + geom_point() + 
+    labs(x="Age (years)", y="Tissue cells (%)", title=paste0(iden, labo)) + 
+    geom_smooth(method="lm", se=FALSE) + theme_bw() & RotatedAxis() + theme(panel.grid = element_blank())
+  values <- as.data.frame(cbind(paste0(iden[1]), round(coro$estimate, digits=2),  round(coro$p.value, digits=3)))
+  summary2 <- rbind(values, summary2)
+}
+
+# Now visualise those most correlated
+grid.arrange(grobs = image.list[c(7,12,20,25,6,29,15,44,30,9,23,19)], ncol=6) 
+
+#################################################################
+
+# Check if disease duration explains the correlation
+
+Idents(tissue) <- "clusters2312"
+ptnum2 <- as.data.frame(table(tissue$patient, tissue@active.ident))
+ptnum2 <- group_by(ptnum2, Var1) %>% mutate(percent = Freq*100/sum(Freq))
+age <- as.data.frame(table(tissue$patient, tissue$onset))  %>% distinct()
+age <- age[age$Freq > 0,1:2]
+ptnum2 <- merge(ptnum2, age, by="Var1")
+ptnum2$Var2.y <- as.integer(as.character(ptnum2$Var2.y)) / 7
+
+image.list <- list()
+summary2 <- data.frame()
+
+for (i in 1:length(iden1)) {
+  iden <- iden1[[i]]
+  selec <- ptnum2[ptnum2$Var2.x %in% iden, ]
+  selec$Var2.y <- as.numeric(as.character(selec$Var2.y))
+  coro <- cor.test(selec$Var2.y, selec$percent, method="spearman")
+  labo <- paste0("\nr2=",round(coro$estimate, digits=2), "\n", "p=", round(coro$p.value, digits=3))
+  image.list[[i]] <- ggplot(selec, aes(x=Var2.y, y=percent)) + geom_point() + 
+    labs(x="Disease duration (weeks)", y="Tissue cells (%)", title=paste0(iden, labo)) + 
+    geom_smooth(method="lm", se=FALSE) + theme_bw() & RotatedAxis() + theme(panel.grid = element_blank())
+  values <- as.data.frame(cbind(paste0(iden[1]), round(coro$estimate, digits=2),  round(coro$p.value, digits=3)))
+  summary2 <- rbind(values, summary2)
+}
+
+grid.arrange(grobs = image.list[c(7,12,20,25,6,29,15,44,30,9,23,19)], ncol=6) 
+
+

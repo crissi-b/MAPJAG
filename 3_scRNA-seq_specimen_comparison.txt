@@ -1,0 +1,462 @@
+library(scProportionTest)
+library(ggfortify)
+library(DESeq2)
+library(dplyr)
+library(ComplexHeatmap)
+library(data.table)
+library(gsfisher)
+library(cowplot)
+library(ggplot2)
+library(RColorBrewer)
+library(Seurat)
+library(splitstackshape)
+library(scater)
+library(tidyverse)
+library(edgeR)
+library(magrittr)
+library(Matrix)
+library(purrr)
+library(reshape2)
+library(tibble)
+library(SingleCellExperiment)
+library(SummarizedExperiment)
+library(ggpubr)
+
+#################################################################
+
+# Load global object
+load(file="/rds/projects/c/croftap-1003568/analysis/setup_repeat_2/mt10_20-nc-protein-10000.rdata")
+
+## Compare proportions of haematopoietic cells between tissue and PBMC
+
+# Extract haematopoietic cells
+Idents(PBMC1) <- "label15"
+haem <- subset(PBMC1, idents=c("Endothelial", "Lymphatics", "Fibroblasts", "Pericytes"), invert=T)
+
+
+#################################################################
+
+
+# Tissue vs PBMC
+test <- sc_utils(haem)
+prop.test <- permutation_test(test, cluster_identity = "label15s", 
+                              sample_1="Tissue", sample_2="Blood", 
+				sample_identity="TYPE", n_permutations=10000)
+permutation_plot(prop.test, FDR_threshold = 0.01, log2FD_threshold = 0.58, order_clusters = T) + 
+			ylab("log2 fold difference in proportions") + xlab("")
+
+
+# SFMC vs PBMC
+test <- sc_utils(haem)
+prop.test <- permutation_test(test, cluster_identity = "label15s", 
+                              sample_1="SF", sample_2="Blood", sample_identity="TYPE", n_permutations=10000)
+permutation_plot(prop.test, FDR_threshold = 0.01, log2FD_threshold = 0.58, order_clusters = T) + 
+			ylab("log2 fold difference in proportions") + xlab("")
+
+
+# Tissue vs SFMC
+test <- sc_utils(haem)
+prop.test <- permutation_test(test, cluster_identity = "label15s", 
+                              sample_1="Tissue", sample_2="SF", sample_identity="TYPE", n_permutations=10000)
+permutation_plot(prop.test, FDR_threshold = 0.01, log2FD_threshold = 0.58, order_clusters = T) + 
+			ylab("log2 fold difference in proportions") + xlab("")
+
+
+#################################################################
+#################################################################
+
+
+# Correlations of Tissue and other populations- code for the overall correlations shown first
+
+# Only include patients with matched samples
+Idents(haem) <- "patient"
+include.patients <- c("95", "84", "811", "88", "98", "814", "817")
+matched <- subset(haem, idents=include.patients)
+
+# Create dataframe of cell numbers for each sample type
+matched$clustT <- paste0(matched$label15s, "_", matched$TYPE)
+ptnum <- as.data.frame(table(matched$clustT, matched$patient))
+ptnum <- cSplit(ptnum, splitCols="Var1", sep="_")
+colnames(ptnum)<-c("patient","Freq", "Clusters", "TYPE")
+ptnum <- ptnum[ptnum$patient %in% include.patients,]
+
+# Correct for the abscence of LAMP3 DCs in Blood dataset
+df <- data.frame(patient = c(95, 84, 811, 88, 98, 814, 817), Freq = rep(0,7),
+                 Clusters = rep("Dendritic cells (LAMP3+)", 7), TYPE = rep("Blood", 7))
+ptnum <- rbind(ptnum, df)
+
+# Calculate proportions of each cell type by sample
+my_data <- ptnum %>% dplyr::group_by(patient,TYPE) %>% dplyr::mutate(percent =  Freq*100/sum(Freq))
+
+# Create variable of the different cell types
+clusters <- unique(my_data$Clusters)
+cor_df <- matrix(NA, nrow = 4, ncol = length(clusters))
+
+# Generate a dataframe of the Spearman Rho correlation and P value
+for (i in 1:length(clusters)) {
+  condition_1_data <- subset(my_data, Clusters == clusters[i] & TYPE == "Tissue")
+  condition_2_data <- subset(my_data, Clusters == clusters[i] & TYPE == "SF")
+  cor_result <- cor.test(condition_1_data$percent, condition_2_data$percent, method="spearman")
+  cor_df[1, i] <- cor_result$estimate
+  cor_df[2, i] <- cor_result$p.value
+  condition_4_data <- subset(my_data, Clusters == clusters[i] & TYPE == "Blood")
+  cor_result <- cor.test(condition_1_data$percent, condition_4_data$percent, method="spearman")
+  cor_df[3, i] <- cor_result$estimate
+  cor_df[4, i] <- cor_result$p.value
+}
+
+# Format it ready for plotting
+colnames(cor_df) <- clusters
+rownames(cor_df) <- c("C_T_vs_SF", "P_T_vs_SF", "C_T_vs_B", "P_T_vs_B") 
+cor_df <- cor_df %>% as.data.frame()
+cor_df$correlation <- ifelse(grepl("^C", rownames(cor_df)), "Correlation", "P_value")
+cor_df$comparison <- gsub("^[^_]*_", "", rownames(cor_df))
+cordf2 <- melt(cor_df)
+cordf <- spread(cordf2, correlation, value)
+custom_colors <- c("dodgerblue", "lightskyblue1", "white", "white", "white", "pink", "red")
+custom_values <- c(-1, -0.5,-0.4, 0, 0.4, 0.5, 1)
+cordf$variable <- factor(cordf$variable, levels=rev(c("Dendritic cells (LAMP3+)","Cycling cells","yd T cells", "Plasmacytoid DCs", "CD4+ T cells","Myeloid cells",
+                                                      "Dendritic cells (cDC2s)", "CD8+ T cells","B cells",  "Dendritic cells (cDC1s)", "NK cells",  
+                                                      "Plasma cells","Innate lymphoid cells")))
+cordf$comparison <- factor(cordf$comparison, levels=c("T_vs_SF", "T_vs_B"))
+
+ggplot(cordf, aes(y = variable, x = comparison)) +
+  scale_fill_gradientn(colors = custom_colors, values = scales::rescale(custom_values), limits = c(-1, 1)) +
+  geom_tile(aes(fill = Correlation), linewidth = 0.7) + 
+  xlab("") + ylab("") & RotatedAxis()
+
+
+#################################################################
+
+
+# Now plot the individual examples of correlated proportions that had a P value > 0.05
+
+cell_type <- "CD4+ T cells"
+condition_1_data <- subset(my_data, Clusters == cell_type & TYPE == "Tissue")
+condition_2_data <- subset(my_data, Clusters == cell_type & TYPE == "Blood")
+cmerged <- merge(condition_1_data, condition_2_data, by="patient")
+corrs <- cor.test(condition_1_data$percent, condition_2_data$percent, method="spearman")
+labelP <- paste0("\nrho=",round(corrs$estimate, digits=2), "\n", "p=", round(corrs$p.value, digits=3))
+ggplot(cmerged, aes(x=(percent.x), y=(percent.y))) + 
+  geom_point(size=3) + geom_smooth(method="lm", se=FALSE) +  theme_minimal() +
+  labs(x="Proportion of tissue cells",y="Proportion of PBMCs",title=paste0(cell_type, labelP)) & simple
+
+cell_type <- "Myeloid cells"
+condition_1_data <- subset(my_data, Clusters == cell_type & TYPE == "Tissue")
+condition_2_data <- subset(my_data, Clusters == cell_type & TYPE == "Blood")
+cmerged <- merge(condition_1_data, condition_2_data, by="patient")
+corrs <- cor.test(condition_1_data$percent, condition_2_data$percent, method="spearman")
+labelP <- paste0("\nrho=",round(corrs$estimate, digits=2), "\n", "p=", round(corrs$p.value, digits=3))
+ggplot(cmerged, aes(x=(percent.x), y=(percent.y))) + 
+  geom_point(size=3) + geom_smooth(method="lm", se=FALSE) +  theme_minimal() +
+  labs(x="Proportion of tissue cells",y="Proportion of PBMCs",title=paste0(cell_type, labelP)) & simple
+
+cell_type <- "Dendritic cells (LAMP3+)"
+condition_1_data <- subset(my_data, Clusters == cell_type & TYPE == "Tissue")
+condition_2_data <- subset(my_data, Clusters == cell_type & TYPE == "SF")
+cmerged <- merge(condition_1_data, condition_2_data, by="patient")
+corrs <- cor.test(condition_1_data$percent, condition_2_data$percent, method="spearman")
+labelP <- paste0("\nrho=",round(corrs$estimate, digits=2), "\n", "p=", round(corrs$p.value, digits=3))
+ggplot(cmerged, aes(x=(percent.x), y=(percent.y))) + 
+  geom_point(size=3) + geom_smooth(method="lm", se=FALSE) +  theme_minimal() +
+  labs(x="Proportion of tissue cells",y="Proportion of PBMCs",title=paste0(cell_type, labelP)) & simple
+
+cell_type <- "Cycling cells"
+condition_1_data <- subset(my_data, Clusters == cell_type & TYPE == "Tissue")
+condition_2_data <- subset(my_data, Clusters == cell_type & TYPE == "SF")
+cmerged <- merge(condition_1_data, condition_2_data, by="patient")
+corrs <- cor.test(condition_1_data$percent, condition_2_data$percent, method="spearman")
+labelP <- paste0("\nrho=",round(corrs$estimate, digits=2), "\n", "p=", round(corrs$p.value, digits=3))
+ggplot(cmerged, aes(x=(percent.x), y=(percent.y))) + 
+  geom_point(size=3) + geom_smooth(method="lm", se=FALSE) +  theme_minimal() +
+  labs(x="Proportion of tissue cells",y="Proportion of PBMCs",title=paste0(cell_type, labelP)) & simple
+
+
+#################################################################
+#################################################################
+
+
+# Calculate up/downregulated genes across specimen types and generate module scores
+# Code for generating bar plots of the total number of differentially expressed genes is provided at the bottom
+
+# Load T cell object
+load(file="/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/T-cells/2307-QC-CD4-CD8-NK_together/2307_CD4-CD8-NK-no_BC-final")
+DefaultAssay(PBMC1) <- "RNA"
+Idents(PBMC1) <- "simple8"
+
+PBMC1 -> v3
+
+# Pseudobulk and create meta.data
+v3$sampleTYPE <-paste(v3$TYPE, v3$sample, sep="_")
+Idents(v3) <- "sampleTYPE"
+# AggregateExpression will sum counts when slot is set to "counts"
+cts_v3 <- AggregateExpression(v3, group.by = c("sampleTYPE"), assays = "RNA", slot = "counts", return.seurat = F)
+cts_v3<-cts_v3$RNA
+meta_data=colnames(cts_v3)
+cts_v3<-as.data.frame(cts_v3)
+meta_data<-as.data.frame(meta_data)
+meta_data$to_split<-meta_data$meta_data
+meta_data<-cSplit(meta_data, splitCols = "to_split", sep="_")
+colnames(meta_data)<-c("all", "TYPE","sample")
+all(colnames(cts_v3) == meta_data$all)
+
+meta_data$sample <- factor(meta_data$sample)
+meta_data$all <- factor(meta_data$all)
+meta_data$TYPE <- factor(meta_data$TYPE)
+
+dds <- DESeqDataSetFromMatrix(countData = cts_v3,
+                              colData = meta_data,
+                              design = ~1)
+
+dds <- scran::computeSumFactors(dds)
+print(dds)
+print(quantile(rowSums(counts(dds))))
+
+mingenecount <- quantile(rowSums(counts(dds)), 0.5)
+maxgenecount <- quantile(rowSums(counts(dds)), 0.999)
+dim(counts(dds))
+
+# Subset low-expressed genes
+keep <- rowSums(counts(dds)) > mingenecount & rowSums(counts(dds)) < maxgenecount
+dds <- dds[keep, ]
+print(quantile(rowSums(counts(dds))))
+dim(dds)
+dds@colData[['TYPE']] <- factor(dds@colData[['TYPE']],
+                                levels = c("Tissue", "Blood", "SF"))
+                                                                                                              
+design(dds) <- formula(~ TYPE)
+print(design(dds))
+dds <- DESeq(dds, test = "Wald")
+print(resultsNames(dds))
+targetvar <- "TYPE"
+comps1 <- data.frame(t(combn(unique(as.character(meta_data[[targetvar]])), 2)))
+head(comps1)
+
+ress <- apply(comps1, 1, function(cp) {
+  print(cp)
+  res <- data.frame(results(dds, contrast=c(targetvar, cp[1], cp[2])))
+  res[["gene"]] <- rownames(res)
+  res[["comparison"]] <- paste0(cp[1], "_vs_", cp[2])
+  res })
+
+res1 <- Reduce(rbind, ress)
+head(res1)      
+res1 %>% filter(padj < 0.01) %>%
+  mutate('score' = log2FoldChange*(-log10(pvalue))) %>%
+  arrange(desc(abs(score))) -> subres
+
+subres_up<-subres[subres$log2FoldChange > 1,]
+subres_down<-subres[subres$log2FoldChange < -1,]
+subres<-rbind(subres_up, subres_down)
+
+deseq2VST <- vst(dds, blind=T)
+feats <- unique(subres$gene)
+print(length(feats))
+
+# Sub-set matrix to relevant features
+deseq2VST <- assay(deseq2VST)
+deseq2VST<-as.matrix(deseq2VST)
+sub_vst_mat <- deseq2VST[rownames(deseq2VST) %in% feats, ]
+scale_sub_vst_mat <- t(scale(t(sub_vst_mat)))
+head(scale_sub_vst_mat)
+dim(scale_sub_vst_mat)
+
+ss_sm <- meta_data[, c("sample", "TYPE")]
+tcol <- c("Blood"= "red", "SF"= "blue","Tissue"= "green3")
+scol <- colorRampPalette(brewer.pal(8, "Greys"))(length(unique(ss_sm$sample)))
+names(scol) <- ss_sm$sample 
+col_ann <- HeatmapAnnotation(df = ss_sm, col= list(TYPE = tcol, sample = scol))
+nrow(scale_sub_vst_mat)
+topedges <- 0.05
+ggnet <- Rfast::cora(t(scale_sub_vst_mat))
+ggnet_gather <- reshape2::melt(ggnet, id.vars = "V1")
+print(dim(ggnet_gather))
+
+ggnet_gather %>%
+  filter(value > 0) %>%
+  filter(Var1 != Var2) -> ggnet_gather
+
+print(dim(ggnet_gather))
+if(nrow(ggnet_gather) > 0) {
+  
+  edges <- arrange(ggnet_gather, -value)
+  print(head(edges))
+  print(tail(edges))
+  edges <- edges[seq(1, nrow(edges), by = 2), ]
+  print(head(edges))
+  print(tail(edges))
+  qtop <- quantile(edges$value, 1-topedges)
+  print(qtop)
+  edges %>%
+    filter(value > qtop) -> top_edges 
+  print(dim(top_edges))
+    
+  top_edges %>%
+    mutate('idx' = paste(Var1, Var2, sep = "_")) -> top_edges# %>%
+
+  colnames(top_edges) <- c("Source", "Target", "Weight", "Id")
+
+  print(head(top_edges))
+  print(dim(top_edges))
+  
+  # - community detection
+  # - igraph definition
+  g <- igraph::graph_from_data_frame(top_edges[, c("Source", "Target")],
+                                     directed = FALSE)
+  g <- igraph::set_edge_attr(g, "weight", value = top_edges$Weight)
+  g <- igraph::set_edge_attr(g, "name", value = top_edges$Id)  
+  
+  # leiden
+  leiden_mod <- igraph::cluster_leiden(g, objective_function = "modularity")
+  mods <- data.frame(cbind(igraph::V(g)$name, leiden_mod$membership))
+  colnames(mods) <- c("Id", "leiden_gene_cluster")
+  imods <- names(table(mods$leiden_gene_cluster)[table(mods$leiden_gene_cluster) > 10])
+  print(imods)
+  
+  if(length(imods) > 0) {
+    mods <- filter(mods, leiden_gene_cluster %in% imods)
+    head(mods)
+    
+    row_cl <- data.frame('gene' = mods$Id,
+                         'gene_cluster' = paste0("K", mods$leiden_gene_cluster))
+    
+    row_cl %>%
+      arrange(gene_cluster) %>%
+      data.frame -> row_cl
+    
+    rownames(row_cl) <- row_cl$gene
+    
+  }
+}
+
+if(exists("row_cl")) {
+  cpal <- rev(brewer.pal(length(unique(row_cl$gene_cluster)), "Set1"))
+  names(cpal) <- unique(row_cl$gene_cluster)
+  row_ann <- rowAnnotation(df = row_cl[, -1], col=list(df = cpal))    
+  
+  p1 <- draw(
+    Heatmap(scale_sub_vst_mat[rownames(row_cl),], 
+            top_annotation = col_ann, 
+            right_annotation = row_ann,
+            col=colorRamp2(c(-1.5, 0, 1.5), c("blue", "white", "red")),
+            row_names_gp = gpar(fontsize = 4), 
+            cluster_columns = T,
+            cluster_rows = FALSE,
+            show_row_names = F,
+            show_column_names = F))
+}
+
+#################################################################
+
+# GO term annotation of gene modules
+annotation_gs<-fetchAnnotation(species = "hs")
+
+index <- match(res1$gene, row_cl$gene)
+res1$cluster <- row_cl$gene_cluster[index]
+res1_cleaned<-na.omit(res1)
+index <- match(res1_cleaned$gene, annotation_gs$gene_name)
+res1_cleaned$ensembl <- annotation_gs$ensembl_id[index]
+
+FilteredGeneID <- unique(res1$gene)
+index <- match(FilteredGeneID, annotation_gs$gene_name)
+ensemblUni <- annotation_gs$ensembl_id[index]
+ensemblUni <- na.omit(ensemblUni)
+res1_cleaned<-na.omit(res1_cleaned)
+
+go.results <- runGO.all(results=res1_cleaned,
+                        background_ids = ensemblUni, gene_id_col="ensembl", gene_id_type="ensembl", sample_col="cluster", p_col="padj", p_threshold=0.05,
+                        species = "hs")
+go.results <- filterGenesets(go.results)
+go.results2 <- go.results[go.results$ontology =="BP",]
+go.results.top <- go.results2 %>% group_by(cluster) %>% top_n(n=40, -p.val)
+
+goterm <- unique(unlist(str_split("GO:0050901 GO:1903037 GO:0099515 GO:0071559 GO:0042102 GO:0071772 GO:0060337 GO:0007009 GO:0006957",pattern=" ")))
+
+include <- go.results.top[go.results.top$geneset_id %in% goterm,]
+include <- arrange(include, cluster)
+include$geneset_id <- factor(include$geneset_id)
+
+sampleEnrichmentDotplot(include, selection_col = "description", selected_genesets = unique(include$description), sample_id_col = "cluster", fill_var = "odds.ratio", maxl=50, title="Go term",rotate_sample_labels = T)
+
+#################################################################
+
+# Summarise numbers of DE genes between T cells in different samples
+
+subres_up2 <-subres_up[subres_up$comparison  %in% "Blood_vs_Tissue",]
+subres_up3 <-subres_up[subres_up$comparison  %in% "SF_vs_Tissue",]
+subres_down2 <-subres_down[subres_down$comparison  %in% "Blood_vs_Tissue",]
+subres_down3 <-subres_down[subres_down$comparison  %in% "SF_vs_Tissue",]
+tcell <- as.data.frame(cbind(length(subres_down3$gene), length(subres_down2$gene), 
+                            length(subres_up3$gene), length(subres_up2$gene)))               
+colnames(tcell) <- c("up Tissue vs SF", "up Tissue vs Blood",  "down Tissue vs SF", "down Tissue vs Blood")
+rownames(tcell) <- "T cells / NK / ILC"
+
+#################################################################
+
+# Repeat above code for B cells, modifying the code when getting to the gene ontology analysis
+
+# B cell GO TERMS
+goterm <- unique(unlist(str_split("GO:0006958 GO:0002377 GO:2001237 GO:0034109 GO:0034340 GO:0030838 GO:0036498 GO:0042149 GO:0071706 GO:0002638 GO:0051403",pattern=" ")))
+
+subres_up2 <-subres_up[subres_up$comparison  %in% "Blood_vs_Tissue",]
+subres_up3 <-subres_up[subres_up$comparison  %in% "SF_vs_Tissue",]
+subres_down2 <-subres_down[subres_down$comparison  %in% "Blood_vs_Tissue",]
+subres_down3 <-subres_down[subres_down$comparison  %in% "SF_vs_Tissue",]
+bcell <- as.data.frame(cbind(length(subres_down3$gene), length(subres_down2$gene), 
+                            length(subres_up3$gene), length(subres_up2$gene))) 
+                           
+colnames(bcell) <- c("up Tissue vs SF", "up Tissue vs Blood",  "down Tissue vs SF", "down Tissue vs Blood")
+rownames(bcell) <- "B cells / plasma cells"
+
+#################################################################
+
+# Myeloid cell GO TERMS
+goterm <- unique(unlist(str_split("GO:0030574 GO:0045765 GO:0006956 GO:0098742 GO:2000508 GO:0045123 GO:0043304 GO:0031960 GO:0071357 GO:0048246",pattern=" ")))
+
+subres_up2 <-subres_up[subres_up$comparison  %in% "Blood_vs_Tissue",]
+subres_up3 <-subres_up[subres_up$comparison  %in% "SF_vs_Tissue",]
+subres_down2 <-subres_down[subres_down$comparison  %in% "Blood_vs_Tissue",]
+subres_down3 <-subres_down[subres_down$comparison  %in% "SF_vs_Tissue",]
+Bye <- as.data.frame(cbind(length(subres_down3$gene), length(subres_down2$gene), 
+                            length(subres_up3$gene), length(subres_up2$gene))) 
+                           
+colnames(mye) <- c("up Tissue vs SF", "up Tissue vs Blood",  "down Tissue vs SF", "down Tissue vs Blood")
+rownames(mye) <- "Macrophages / monocytes"
+
+#################################################################
+
+# Dendritic cell GO TERMS
+goterm <- unique(unlist(str_split("GO:0032680 GO:0050671 GO:0031295 GO:0033559 GO:0001818 	GO:0006000 GO:1904018 GO:2001233 GO:0032620 GO:0006000 GO:0019722",pattern=" ")))
+
+subres_up2 <-subres_up[subres_up$comparison  %in% "Blood_vs_Tissue",]
+subres_up3 <-subres_up[subres_up$comparison  %in% "SF_vs_Tissue",]
+subres_down2 <-subres_down[subres_down$comparison  %in% "Blood_vs_Tissue",]
+subres_down3 <-subres_down[subres_down$comparison  %in% "SF_vs_Tissue",]
+dc <- as.data.frame(cbind(length(subres_down3$gene), length(subres_down2$gene), 
+                            length(subres_up3$gene), length(subres_up2$gene))) 
+                           
+colnames(dc) <- c("up Tissue vs SF", "up Tissue vs Blood",  "down Tissue vs SF", "down Tissue vs Blood")
+rownames(dc) <- "Dendritic cells"
+
+
+#################################################################
+#################################################################
+
+
+# Creating bar charts of number of differentially expressed genes
+tb3 <- rbind(mye,tcell,dc,bcell)
+
+melt(tb3) -> tb3
+tb3$variable <- gsub("up.", "", tb3$variable)
+tb3$variable <- gsub("down.", "", tb3$variable)
+tb3 <- tb3 %>%
+  group_by(variable, X) %>%
+  summarize(total_number = sum(value))
+tb3$variable <- gsub("\\.", " ", tb3$variable)
+
+tb3 <- tb3[tb3$variable %in% c("Tissue vs SF", "Tissue vs Blood"),]
+
+ggplot(tb3, aes(y = X, x = total_number, fill = variable)) +
+  geom_bar(stat = "identity", position = "dodge") + ylab("") + xlab("\nDifferentially expressed genes (adjusted P < 0.01)\n") +
+  scale_fill_manual(values=c("seagreen",  "red2","steelblue3"), breaks = rev(levels(factor(tb3$variable)))) + 
+	geom_hline(yintercept=0, linetype="solid", color="black")

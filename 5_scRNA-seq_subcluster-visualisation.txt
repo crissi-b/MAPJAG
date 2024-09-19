@@ -223,6 +223,34 @@ genes <- c("MMP3", "PRG4", "FN1", "CLU", "POSTN","MMP14", "COMP", "PI16", "DKK3"
            "FABP4", "NOTCH4", "ACKR1", "CCL14", "VWF", "FLI1", "DOCK4", "PDPN", "LYVE1", "CCL21")
 DotPlot(seurat_obj, features=genes) & formplot
 
+#################################################################
+#################################################################
+
+# PCA of haematopoietic abundance
+
+Idents(PBMC1) <- "label15s"
+haem <- subset(PBMC1, idents=c("Endothelial cells", "Lymphatics", "Fibroblasts", "Pericytes"), invert=T)
+
+dat <- table(haem@meta.data$clusters2312,haem@meta.data$sample)
+dat <- dat[,which(colSums(dat) > 0)]
+dat <- dat[which(rowSums(dat) > 0),]
+dat <- t(dat)
+dat <- dat/rowSums(dat)
+dat <- scale(dat)
+pca <- prcomp(dat)
+# Extract the variance explained by each PC
+explained_variance <- (pca$sdev)^2
+exp_vr <- explained_variance / sum(explained_variance)
+# Variance labels
+vPC1 <- paste0("PC1 (", round(exp_vr[1]*100, digits=0), "% variance)")
+vPC2 <- paste0("PC2 (", round(exp_vr[2]*100, digits=0), "% variance)")
+pca_coords <- as.data.frame(pca$x)[,1:2]
+pca_coords$ID <- row.names(pca_coords)
+pca_coords$ID <- gsub("[0-9]+", "", pca_coords$ID)
+pca_coords$ID <- factor(pca_coords$ID, levels=c("T", "B", "SF"))
+ggplot(pca_coords, aes(x=PC1, y=PC2, label=ID, color=ID)) + geom_point(size=2) + 
+  scale_color_manual(values=c("burlywood3", "red",  "steelblue3")) +
+  theme_bw() + theme(panel.grid = element_blank()) + labs(x=vPC1, y =vPC2)
 
 #################################################################
 #################################################################

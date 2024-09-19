@@ -387,7 +387,8 @@ for (i in 1:length(iden1)) \{\
   iden <- iden1[[i]]\
   selec <- ptnum2[ptnum2$Var2.x %in% iden, ]\
   selec$Var2.y <- as.numeric(as.character(selec$Var2.y))\
-  coro <- cor.test(selec$Var2.y, selec$percent, method="spearman")\
+  print(shapiro.test(selec$percent))\
+  coro <- cor.test(selec$Var2.y, selec$percent)\
   labo <- paste0("\\nRho=",round(coro$estimate, digits=2), "\\n", "P =", round(coro$p.value, digits=3))\
    image.list[[i]] <- ggplot(selec, aes(x=Var2.y, y=percent)) + geom_point() + labs(x="Infiltrate score", y="Tissue cells (%)", title=paste0(iden, labo)) + geom_smooth(method="lm", se=FALSE) + theme(panel.border = element_rect(colour = "black", fill = NA),panel.grid = element_blank(),panel.background = element_blank())\
   summary[i] <- paste0(iden1[i],"  ", labo)\
@@ -396,7 +397,7 @@ for (i in 1:length(iden1)) \{\
   summary2 <- rbind(values, summary2)\
 \}\
 \
-grid.arrange(grobs = image.list[c(1,4,5,3,2,7,6)], ncol=4)  \
+grid.arrange(grobs = image.list[c(1,4,7,5,2,3,6)], ncol=4)  \
 \
 #################################################################\
 \
@@ -421,7 +422,8 @@ for (i in 1:length(iden1)) \{\
   iden <- iden1[[i]]\
   selec <- ptnum2[ptnum2$Var2.x %in% iden, ]\
   selec$Var2.y <- as.numeric(as.character(selec$Var2.y))\
-  coro <- cor.test(selec$Var2.y, selec$percent, method="spearman")\
+  print(shapiro.test(selec$percent))\
+  coro <- cor.test(selec$Var2.y, selec$percent)\
   labo <- paste0("\\nRho=",round(coro$estimate, digits=2), "\\n", "P =", round(coro$p.value, digits=3))\
 	image.list[[i]] <- ggplot(selec, aes(x=Var2.y, y=percent)) + geom_point() + labs(x="Infiltrate score", y="Tissue cells (%)", title=paste0(iden, labo)) + geom_smooth(method="lm", se=FALSE) + theme(panel.border = element_rect(colour = "black", fill = NA),panel.grid = element_blank(),panel.background = element_blank())\
   summary[i] <- paste0(iden1[i],"  ", labo)\

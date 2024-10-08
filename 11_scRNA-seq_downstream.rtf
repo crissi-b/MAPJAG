@@ -46,7 +46,7 @@ test <- subset(test, idents=ptnum, invert=T)\
 \
 # Take average expression of genes, reformat names of rows and columns, make heatmap of gene expression\
 Idents(test) <- "clusters2312"\
-glob <- as.data.frame(AverageExpression(object = test, assay="RNA", features=ext)) %>% t() %>% as.matrix()\
+glob <- as.data.frame(AggregateExpression(object = test, assay="RNA", features=ext)) %>% t() %>% as.matrix()\
 rownames(glob) <- gsub("RNA.", "", rownames(glob))\
 rownames(glob) <- gsub("\\\\.\\\\.", "+ ", rownames(glob))\
 rownames(glob) <- gsub("\\\\.", " ", rownames(glob))\
@@ -76,7 +76,7 @@ smaller <- subset(tissue, idents=ptnum, invert=T)\
 \
 # Take average expression of genes, reformat names of rows and columns, make heatmap of gene expression\
 \
-fbBRES <- as.data.frame(AverageExpression(object = smaller, assay="RNA", features=genes)) %>% t() %>% as.matrix()\
+fbBRES <- as.data.frame(AggregateExpression(object = smaller, assay="RNA", features=genes)) %>% t() %>% as.matrix()\
 rownames(fbBRES) <- gsub("RNA.", "", rownames(fbBRES))\
 rownames(fbBRES) <- gsub("\\\\.\\\\.", "+ ", rownames(fbBRES))\
 rownames(fbBRES) <- gsub("\\\\.", " ", rownames(fbBRES))\

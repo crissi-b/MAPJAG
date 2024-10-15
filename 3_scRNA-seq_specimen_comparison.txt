@@ -204,166 +204,134 @@ meta_data$sample <- factor(meta_data$sample)
 meta_data$all <- factor(meta_data$all)
 meta_data$TYPE <- factor(meta_data$TYPE)
 
-dds <- DESeqDataSetFromMatrix(countData = cts_v3,
-                              colData = meta_data,
-                              design = ~1)
+dds <- DESeqDataSetFromMatrix(countData = cts_v3, colData = meta_data, design = ~1)
 
 dds <- scran::computeSumFactors(dds)
-print(dds)
-print(quantile(rowSums(counts(dds))))
 
-mingenecount <- quantile(rowSums(counts(dds)), 0.5)
-maxgenecount <- quantile(rowSums(counts(dds)), 0.999)
-dim(counts(dds))
-
-# Subset low-expressed genes
-keep <- rowSums(counts(dds)) > mingenecount & rowSums(counts(dds)) < maxgenecount
+min_gene <- quantile(rowSums(counts(dds)), 0.5)
+max_gene <- quantile(rowSums(counts(dds)), 0.999)
+keep <- rowSums(counts(dds)) > min_gene & rowSums(counts(dds)) < max_gene
 dds <- dds[keep, ]
-print(quantile(rowSums(counts(dds))))
-dim(dds)
+
 dds@colData[['TYPE']] <- factor(dds@colData[['TYPE']],
                                 levels = c("Tissue", "Blood", "SF"))
                                                                                                               
 design(dds) <- formula(~ TYPE)
-print(design(dds))
 dds <- DESeq(dds, test = "Wald")
-print(resultsNames(dds))
+
 targetvar <- "TYPE"
-comps1 <- data.frame(t(combn(unique(as.character(meta_data[[targetvar]])), 2)))
-head(comps1)
 
-ress <- apply(comps1, 1, function(cp) {
-  print(cp)
-  res <- data.frame(results(dds, contrast=c(targetvar, cp[1], cp[2])))
-  res[["gene"]] <- rownames(res)
-  res[["comparison"]] <- paste0(cp[1], "_vs_", cp[2])
-  res })
+comparisons <- data.frame(t(combn(unique(as.character(meta_data[[targetvar]])), 2)))
 
-res1 <- Reduce(rbind, ress)
-head(res1)      
-res1 %>% filter(padj < 0.01) %>%
+gene_comp <- apply(comparisons, 1, function(cp) {
+  comparison <- paste0(cp[1], "_vs_", cp[2])
+  degs <- as.data.frame(results(dds, contrast = c(targetvar, cp[1], cp[2])))
+  degs[["gene"]] <- rownames(res)
+  degs[["comparison"]] <- comparison
+  degs
+})
+
+all_degs <- Reduce(rbind, gene_comp)
+
+all_degs %>% filter(padj < 0.01) %>%
   mutate('score' = log2FoldChange*(-log10(pvalue))) %>%
-  arrange(desc(abs(score))) -> subres
+  arrange(desc(abs(score))) -> all_degs_f
 
-subres_up<-subres[subres$log2FoldChange > 1,]
-subres_down<-subres[subres$log2FoldChange < -1,]
-subres<-rbind(subres_up, subres_down)
+all_degs_f_up<-all_degs_f[all_degs_f$log2FoldChange > 1,]
+all_degs_f_down<-all_degs_f[all_degs_f$log2FoldChange < -1,]
+all_degs_f<-rbind(all_degs_f_up, all_degs_f_down)
 
 deseq2VST <- vst(dds, blind=T)
-feats <- unique(subres$gene)
-print(length(feats))
+gene_filter <- unique(subres$gene)
+
 
 # Sub-set matrix to relevant features
 deseq2VST <- assay(deseq2VST)
 deseq2VST<-as.matrix(deseq2VST)
-sub_vst_mat <- deseq2VST[rownames(deseq2VST) %in% feats, ]
+sub_vst_mat <- deseq2VST[rownames(deseq2VST) %in% gene_filter, ]
 scale_sub_vst_mat <- t(scale(t(sub_vst_mat)))
-head(scale_sub_vst_mat)
-dim(scale_sub_vst_mat)
 
-ss_sm <- meta_data[, c("sample", "TYPE")]
+
+
+meta_new <- meta_data[, c("sample", "TYPE")]
 tcol <- c("Blood"= "red", "SF"= "blue","Tissue"= "green3")
 scol <- colorRampPalette(brewer.pal(8, "Greys"))(length(unique(ss_sm$sample)))
-names(scol) <- ss_sm$sample 
-col_ann <- HeatmapAnnotation(df = ss_sm, col= list(TYPE = tcol, sample = scol))
-nrow(scale_sub_vst_mat)
-topedges <- 0.05
+names(scol) <- meta_new$sample 
+anno_cols <- HeatmapAnnotation(df = meta_new, col= list(TYPE = tcol, sample = scol))
+
+top_ed <- 0.05
 ggnet <- Rfast::cora(t(scale_sub_vst_mat))
 ggnet_gather <- reshape2::melt(ggnet, id.vars = "V1")
-print(dim(ggnet_gather))
 
-ggnet_gather %>%
-  filter(value > 0) %>%
-  filter(Var1 != Var2) -> ggnet_gather
+ggnet_gather %>%  filter(value > 0) %>%   filter(Var1 != Var2) -> ggnet_gather
 
-print(dim(ggnet_gather))
-if(nrow(ggnet_gather) > 0) {
-  
-  edges <- arrange(ggnet_gather, -value)
-  print(head(edges))
-  print(tail(edges))
-  edges <- edges[seq(1, nrow(edges), by = 2), ]
-  print(head(edges))
-  print(tail(edges))
-  qtop <- quantile(edges$value, 1-topedges)
-  print(qtop)
-  edges %>%
-    filter(value > qtop) -> top_edges 
-  print(dim(top_edges))
-    
-  top_edges %>%
-    mutate('idx' = paste(Var1, Var2, sep = "_")) -> top_edges# %>%
+ 
+ed <- arrange(ggnet_gather, -value)
 
-  colnames(top_edges) <- c("Source", "Target", "Weight", "Id")
+ed <- ed[seq(1, nrow(ed), by = 2), ]
 
-  print(head(top_edges))
-  print(dim(top_edges))
-  
-  # - community detection
-  # - igraph definition
-  g <- igraph::graph_from_data_frame(top_edges[, c("Source", "Target")],
-                                     directed = FALSE)
-  g <- igraph::set_edge_attr(g, "weight", value = top_edges$Weight)
-  g <- igraph::set_edge_attr(g, "name", value = top_edges$Id)  
-  
-  # leiden
-  leiden_mod <- igraph::cluster_leiden(g, objective_function = "modularity")
-  mods <- data.frame(cbind(igraph::V(g)$name, leiden_mod$membership))
-  colnames(mods) <- c("Id", "leiden_gene_cluster")
-  imods <- names(table(mods$leiden_gene_cluster)[table(mods$leiden_gene_cluster) > 10])
-  print(imods)
-  
-  if(length(imods) > 0) {
-    mods <- filter(mods, leiden_gene_cluster %in% imods)
-    head(mods)
-    
-    row_cl <- data.frame('gene' = mods$Id,
-                         'gene_cluster' = paste0("K", mods$leiden_gene_cluster))
-    
-    row_cl %>%
-      arrange(gene_cluster) %>%
-      data.frame -> row_cl
-    
-    rownames(row_cl) <- row_cl$gene
-    
-  }
-}
+qtop <- quantile(ed$value, 1-top_ed)
 
-if(exists("row_cl")) {
-  cpal <- rev(brewer.pal(length(unique(row_cl$gene_cluster)), "Set1"))
-  names(cpal) <- unique(row_cl$gene_cluster)
-  row_ann <- rowAnnotation(df = row_cl[, -1], col=list(df = cpal))    
+ed %>% filter(value > qtop) -> top_ed 
+
+top_edges %>%
+mutate('idx' = paste(Var1, Var2, sep = "_")) -> top_ed# %>%
+
+colnames(top_ed) <- c("Source", "Target", "Weight", "Id")
+
+g <- igraph::graph_from_data_frame(top_ed[, c("Source", "Target")],
+			     directed = FALSE)
+g <- igraph::set_edge_attr(g, "weight", value = top_ed$Weight)
+g <- igraph::set_edge_attr(g, "name", value = top_ed$Id)  
+
+l_mods <- igraph::cluster_leiden(g, objective_function = "modularity")
+modules <- data.frame(cbind(igraph::V(g)$name, l_mods$membership))
+colnames(modules) <- c("Id", "leiden_gene_cluster")
+modules_2 <- names(table(modules$leiden_gene_cluster)[table(modules$leiden_gene_cluster) > 10])
+
+modules <- filter(modules, leiden_gene_cluster %in% modules_2)
+
+row_modules <- data.frame('gene' = modules$Id,
+		 'gene_cluster' = paste0("M", modules$leiden_gene_cluster))
+
+row_modules %>%
+arrange(gene_cluster) %>%
+data.frame -> row_modules
+
+rownames(row_modules) <- row_modules$gene
+    
+
+cpal <- rev(brewer.pal(length(unique(row_modules$gene_cluster)), "Set1"))
+names(cpal) <- unique(row_modules$gene_cluster)
+anno_row <- rowAnnotation(df = row_modules[, -1], col=list(df = cpal))    
   
-  p1 <- draw(
-    Heatmap(scale_sub_vst_mat[rownames(row_cl),], 
-            top_annotation = col_ann, 
-            right_annotation = row_ann,
-            col=colorRamp2(c(-1.5, 0, 1.5), c("blue", "white", "red")),
+Heatmap(scale_sub_vst_mat[rownames(row_modules),], 
+            top_annotation = anno_cols, 
+            right_annotation = anno_row,
             row_names_gp = gpar(fontsize = 4), 
             cluster_columns = T,
             cluster_rows = FALSE,
             show_row_names = F,
-            show_column_names = F))
-}
+            show_column_names = F)
 
 #################################################################
 
 # GO term annotation of gene modules
 annotation_gs<-fetchAnnotation(species = "hs")
 
-index <- match(res1$gene, row_cl$gene)
-res1$cluster <- row_cl$gene_cluster[index]
-res1_cleaned<-na.omit(res1)
-index <- match(res1_cleaned$gene, annotation_gs$gene_name)
-res1_cleaned$ensembl <- annotation_gs$ensembl_id[index]
+index <- match(all_degs$gene, row_modules$gene)
+all_degs$cluster <- row_modules$gene_cluster[index]
+all_degs_cleaned<-na.omit(all_degs)
+index <- match(all_degs_cleaned$gene, annotation_gs$gene_name)
+all_degs_cleaned$ensembl <- annotation_gs$ensembl_id[index]
 
-FilteredGeneID <- unique(res1$gene)
+FilteredGeneID <- unique(all_degs$gene)
 index <- match(FilteredGeneID, annotation_gs$gene_name)
 ensemblUni <- annotation_gs$ensembl_id[index]
 ensemblUni <- na.omit(ensemblUni)
-res1_cleaned<-na.omit(res1_cleaned)
+all_degs_cleaned<-na.omit(res1_cleaned)
 
-go.results <- runGO.all(results=res1_cleaned,
+go.results <- runGO.all(results=all_degs_cleaned,
                         background_ids = ensemblUni, gene_id_col="ensembl", gene_id_type="ensembl", sample_col="cluster", p_col="padj", p_threshold=0.05,
                         species = "hs")
 go.results <- filterGenesets(go.results)
@@ -382,12 +350,12 @@ sampleEnrichmentDotplot(include, selection_col = "description", selected_geneset
 
 # Summarise numbers of DE genes between T cells in different samples
 
-subres_up2 <-subres_up[subres_up$comparison  %in% "Blood_vs_Tissue",]
-subres_up3 <-subres_up[subres_up$comparison  %in% "SF_vs_Tissue",]
-subres_down2 <-subres_down[subres_down$comparison  %in% "Blood_vs_Tissue",]
-subres_down3 <-subres_down[subres_down$comparison  %in% "SF_vs_Tissue",]
-tcell <- as.data.frame(cbind(length(subres_down3$gene), length(subres_down2$gene), 
-                            length(subres_up3$gene), length(subres_up2$gene)))               
+all_degs_up2 <-all_degs_up[all_degs_up$comparison  %in% "Blood_vs_Tissue",]
+all_degs_up3 <-all_degs_up[all_degs_up$comparison  %in% "SF_vs_Tissue",]
+all_degs_down2 <-all_degs_down[all_degs_down$comparison  %in% "Blood_vs_Tissue",]
+all_degs_down3 <-all_degs_down[all_degs_down$comparison  %in% "SF_vs_Tissue",]
+tcell <- as.data.frame(cbind(length(all_degs_down3$gene), length(all_degs_down2$gene), 
+                            length(all_degs_up3$gene), length(all_degs_up2$gene)))               
 colnames(tcell) <- c("up Tissue vs SF", "up Tissue vs Blood",  "down Tissue vs SF", "down Tissue vs Blood")
 rownames(tcell) <- "T cells / NK / ILC"
 
@@ -398,12 +366,12 @@ rownames(tcell) <- "T cells / NK / ILC"
 # B cell GO TERMS
 goterm <- unique(unlist(str_split("GO:0006958 GO:0002377 GO:2001237 GO:0034109 GO:0034340 GO:0030838 GO:0036498 GO:0042149 GO:0071706 GO:0002638 GO:0051403",pattern=" ")))
 
-subres_up2 <-subres_up[subres_up$comparison  %in% "Blood_vs_Tissue",]
-subres_up3 <-subres_up[subres_up$comparison  %in% "SF_vs_Tissue",]
-subres_down2 <-subres_down[subres_down$comparison  %in% "Blood_vs_Tissue",]
-subres_down3 <-subres_down[subres_down$comparison  %in% "SF_vs_Tissue",]
-bcell <- as.data.frame(cbind(length(subres_down3$gene), length(subres_down2$gene), 
-                            length(subres_up3$gene), length(subres_up2$gene))) 
+all_degs_up2 <-all_degs_up[all_degs_up$comparison  %in% "Blood_vs_Tissue",]
+all_degs_up3 <-all_degs_up[all_degs_up$comparison  %in% "SF_vs_Tissue",]
+all_degs_down2 <-all_degs_down[all_degs_down$comparison  %in% "Blood_vs_Tissue",]
+all_degs_down3 <-all_degs_down[all_degs_down$comparison  %in% "SF_vs_Tissue",]
+bcell <- as.data.frame(cbind(length(all_degs_down3$gene), length(all_degs_down2$gene), 
+                            length(all_degs_up3$gene), length(all_degs_up2$gene))) 
                            
 colnames(bcell) <- c("up Tissue vs SF", "up Tissue vs Blood",  "down Tissue vs SF", "down Tissue vs Blood")
 rownames(bcell) <- "B cells / plasma cells"
@@ -413,12 +381,12 @@ rownames(bcell) <- "B cells / plasma cells"
 # Myeloid cell GO TERMS
 goterm <- unique(unlist(str_split("GO:0030574 GO:0045765 GO:0006956 GO:0098742 GO:2000508 GO:0045123 GO:0043304 GO:0031960 GO:0071357 GO:0048246",pattern=" ")))
 
-subres_up2 <-subres_up[subres_up$comparison  %in% "Blood_vs_Tissue",]
-subres_up3 <-subres_up[subres_up$comparison  %in% "SF_vs_Tissue",]
-subres_down2 <-subres_down[subres_down$comparison  %in% "Blood_vs_Tissue",]
-subres_down3 <-subres_down[subres_down$comparison  %in% "SF_vs_Tissue",]
-Bye <- as.data.frame(cbind(length(subres_down3$gene), length(subres_down2$gene), 
-                            length(subres_up3$gene), length(subres_up2$gene))) 
+all_degs_up2 <-all_degs_up[all_degs_up$comparison  %in% "Blood_vs_Tissue",]
+all_degs_up3 <-all_degs_up[all_degs_up$comparison  %in% "SF_vs_Tissue",]
+all_degs_down2 <-all_degs_down[all_degs_down$comparison  %in% "Blood_vs_Tissue",]
+all_degs_down3 <-all_degs_down[all_degs_down$comparison  %in% "SF_vs_Tissue",]
+Bye <- as.data.frame(cbind(length(all_degs_down3$gene), length(all_degs_down2$gene), 
+                            length(all_degs_up3$gene), length(all_degs_up2$gene))) 
                            
 colnames(mye) <- c("up Tissue vs SF", "up Tissue vs Blood",  "down Tissue vs SF", "down Tissue vs Blood")
 rownames(mye) <- "Macrophages / monocytes"
@@ -428,12 +396,12 @@ rownames(mye) <- "Macrophages / monocytes"
 # Dendritic cell GO TERMS
 goterm <- unique(unlist(str_split("GO:0032680 GO:0050671 GO:0031295 GO:0033559 GO:0001818 	GO:0006000 GO:1904018 GO:2001233 GO:0032620 GO:0006000 GO:0019722",pattern=" ")))
 
-subres_up2 <-subres_up[subres_up$comparison  %in% "Blood_vs_Tissue",]
-subres_up3 <-subres_up[subres_up$comparison  %in% "SF_vs_Tissue",]
-subres_down2 <-subres_down[subres_down$comparison  %in% "Blood_vs_Tissue",]
-subres_down3 <-subres_down[subres_down$comparison  %in% "SF_vs_Tissue",]
-dc <- as.data.frame(cbind(length(subres_down3$gene), length(subres_down2$gene), 
-                            length(subres_up3$gene), length(subres_up2$gene))) 
+all_degs_up2 <-all_degs_up[all_degs_up$comparison  %in% "Blood_vs_Tissue",]
+all_degs_up3 <-all_degs_up[all_degs_up$comparison  %in% "SF_vs_Tissue",]
+all_degs_down2 <-all_degs_down[all_degs_down$comparison  %in% "Blood_vs_Tissue",]
+all_degs_down3 <-all_degs_down[all_degs_down$comparison  %in% "SF_vs_Tissue",]
+dc <- as.data.frame(cbind(length(all_degs_down3$gene), length(all_degs_down2$gene), 
+                            length(all_degs_up3$gene), length(all_degs_up2$gene))) 
                            
 colnames(dc) <- c("up Tissue vs SF", "up Tissue vs Blood",  "down Tissue vs SF", "down Tissue vs Blood")
 rownames(dc) <- "Dendritic cells"

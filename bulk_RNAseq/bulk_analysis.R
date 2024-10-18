@@ -32,58 +32,39 @@ dds <- DESeq(dds, test = "Wald")
 
 cond <- "conditon"
 
-# Create all pairwise comparisons
-comps1 <- combn(unique(as.character(meta_data[[cond]])), 2, simplify = FALSE)
+targetvar <- "TYPE"
 
-ress <- lapply(comps1, function(cp) {
-  res <- as.data.frame(results(dds, contrast = c(targetvar, cp[1], cp[2])))
-  res$gene <- rownames(res)
-  res$comparison <- paste0(cp[1], "_vs_", cp[2])
-  return(res)
+comparisons <- data.frame(t(combn(unique(as.character(meta_data[[targetvar]])), 2)))
+
+gene_comp <- apply(comparisons, 1, function(cp) {
+  comparison <- paste0(cp[1], "_vs_", cp[2])
+  degs <- as.data.frame(results(dds, contrast = c(targetvar, cp[1], cp[2])))
+  degs[["gene"]] <- rownames(res)
+  degs[["comparison"]] <- comparison
+  degs
 })
 
-res1 <- do.call(rbind, ress)
+all_degs <- Reduce(rbind, gene_comp)
 
-subres <- res1 %>%
-  dplyr::filter(padj < 0.05) %>%
-  dplyr::mutate(score = log2FoldChange * (-log10(pvalue))) %>%
-  dplyr::arrange(desc(abs(score)))
+all_degs %>% filter(padj < 0.05) %>%
+  mutate('score' = log2FoldChange*(-log10(pvalue))) %>%
+  arrange(desc(abs(score))) -> all_degs_f
 
 
-library(ComplexHeatmap)
+deseq2VST <- vst(dds, blind=T)
+gene_filter <- unique(all_degs_f$gene)
 
-if(length(unique(subres$gene)) > 10) {
-      vsd <- tryCatch({
-        vst(dds, blind=TRUE)
-      }, error=function(e) {
-        message(e)
-        print(e)
-        return(NULL)
-      })
-      
-      if(!is.null(vsd)) {
-        print(dim(assay(vsd)))
-        print(head(assay(vsd), 3))
-        vsd_mat <- assay(vsd)
-        
-        feats <- unique(subres$gene)
-        print(length(feats))
-        
-        # Sub-set matrix to relevant features
-        sub_vsd_mat <- vsd_mat[rownames(vsd_mat) %in% feats, ]
-        scale_sub_vsd <- t(scale(t(sub_vsd_mat)))
-        head(scale_sub_vsd)
-        dim(scale_sub_vsd)
-      }
-}
-
+deseq2VST <- assay(deseq2VST)
+deseq2VST<-as.matrix(deseq2VST)
+sub_vst_mat <- deseq2VST[rownames(deseq2VST) %in% gene_filter, ]
+scale_sub_vst_mat <- t(scale(t(sub_vst_mat)))
 
 colours <- list('condition' = meta_data$conditon)
 col_ann <- HeatmapAnnotation(df = meta_data[,c("conditon")], col=colours)
 
 
 library(colorRamp2)
-Heatmap(scale_sub_vsd, 
+Heatmap(scale_sub_vst_mat, 
               top_annotation = col_ann, 
               cluster_columns = F,
               cluster_rows = T,

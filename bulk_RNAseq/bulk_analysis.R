@@ -1,6 +1,4 @@
 
-```{r}
-
 counts_all <- read.delim("/rds/projects/c/croftap-mapjagb9/bulkseq_JIAfibs/count/counts_all_ctrl_TGF.txt", row.names=1, comment.char="#")
 
 library(DESeq2)
@@ -29,9 +27,6 @@ dds@colData[['conditon']] <- as.factor(dds@colData[['conditon']])
 design(dds) <- formula(~ conditon)
 dds <- DESeq(dds, test = "Wald")
 
-
-cond <- "conditon"
-
 targetvar <- "TYPE"
 
 comparisons <- data.frame(t(combn(unique(as.character(meta_data[[targetvar]])), 2)))
@@ -49,7 +44,6 @@ all_degs <- Reduce(rbind, gene_comp)
 all_degs %>% filter(padj < 0.05) %>%
   mutate('score' = log2FoldChange*(-log10(pvalue))) %>%
   arrange(desc(abs(score))) -> all_degs_f
-
 
 deseq2VST <- vst(dds, blind=T)
 gene_filter <- unique(all_degs_f$gene)

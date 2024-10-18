@@ -242,7 +242,7 @@ all_degs_f_down<-all_degs_f[all_degs_f$log2FoldChange < -1,]
 all_degs_f<-rbind(all_degs_f_up, all_degs_f_down)
 
 deseq2VST <- vst(dds, blind=T)
-gene_filter <- unique(subres$gene)
+gene_filter <- unique(all_degs_f$gene)
 
 
 # Sub-set matrix to relevant features

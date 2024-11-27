@@ -1,5 +1,5 @@
 
-# For consice vingette of niche analysis along with list of essential funcitons: https://github.com/chrismahony/processing_piplines_bluebear/tree/main/process_Xenium_CosMx_R
+# For concise vingette of niche analysis along with list of essential funcitons: https://github.com/chrismahony/processing_piplines_bluebear/tree/main/process_Xenium_CosMx_R
 
 
 ```{r}

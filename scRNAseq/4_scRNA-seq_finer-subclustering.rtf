@@ -436,6 +436,21 @@ write.csv(clusters, file="/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/Globa
 #################################################################\
 \
 \
+# Add scoring for expression of tissue resident memory markers 
+moduleTRM <- list(c("ITGAE", "ITGA1", "PDCD1", "CXCR6"))
+Tcell <- AddModuleScore(Tcell, features=moduleTRM, name="TRM")
+\
+FeaturePlot(Tcell, features="TRM1", split.by="TYPE", 
+        min.cutoff = "q10", max.cutoff="q90", raster=F) & 
+        theme(legend.title=element_blank(),axis.title.x=element_blank(), 
+        axis.title.y=element_blank(), axis.text = element_blank())
+\
+\
+\
+#################################################################\
+#################################################################\
+\
+\
 # Subclustering B cells\
 \
 #select out B and plasma from the global object\
@@ -647,3 +662,6 @@ b.labels <- rev(c("Activated Plasma cells", "Plasma cells","GC-like Memory B",\
                   "PAX5+ Pro-B-like", "Transitional B", "IgD+IgM+ Naive B"))\
 levels(PBMC1) <- b.labels\
 }
+
+
+

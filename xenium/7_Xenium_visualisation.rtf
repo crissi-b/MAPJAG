@@ -389,7 +389,7 @@ for (i in 1:length(iden1)) \{\
   selec$Var2.y <- as.numeric(as.character(selec$Var2.y))\
   print(shapiro.test(selec$percent))\
   coro <- cor.test(selec$Var2.y, selec$percent)\
-  labo <- paste0("\\nRho=",round(coro$estimate, digits=2), "\\n", "P =", round(coro$p.value, digits=3))\
+  labo <- paste0("\\nr=",round(coro$estimate, digits=2), "\\n", "P =", round(coro$p.value, digits=3))\
    image.list[[i]] <- ggplot(selec, aes(x=Var2.y, y=percent)) + geom_point() + labs(x="Infiltrate score", y="Tissue cells (%)", title=paste0(iden, labo)) + geom_smooth(method="lm", se=FALSE) + theme(panel.border = element_rect(colour = "black", fill = NA),panel.grid = element_blank(),panel.background = element_blank())\
   summary[i] <- paste0(iden1[i],"  ", labo)\
   #summary[i] <- paste0(sig[i],"  ", labo)\

@@ -17,6 +17,7 @@ library(CellChat)
 library(ggalluvial)
 library(patchwork)
 library(NMF)
+library(ggpubr)
 
 # Load single-cell tissue object
 load(file="/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/Global/sc-tissue.RData")
@@ -133,7 +134,7 @@ check <- GetAssayData(xen, assay="RNA", slot="data")
 
 # Create vector of genes present in Xenium probes also present in the signalling pathways identified from scRNA-seq, as EGFR is more likely to intercept a signal than send an outgoing signal it is not included
 
-genes <- c("CXCL10", "CXCL2", "CXCL6", "CXCL9", "PECAM1", "PPARG",
+genes <- c("CXCL10", "CXCL2", "CXCL6", "CXCL9", "PECAM1", "PTPRC",
            "CCL5", "CCL19", "CCL27", "CLEC10A", "CLEC14A", "CLEC1", "SELL", "THBS2", 
            "THY1", "PTN", "SEMA3C", "FGFBP1", "FGFBP2", "ANGPT2", "CD34", "COL5A2", "HLA-DQB2",
            "TNC")
@@ -151,7 +152,7 @@ check2 <- check2[!is.na(check2$niches_named), ]
 check2 <- check2[!(check2$niches_named %in% "Adipose-rich"), ]
 
 # Identify average gene expression per niche per donor
-donor_id <- xen[[“patient]]
+donor_id <- xen[["patient"]]
 donor_id$cell <- rownames(donor_id) 
 check2 <- merge(check2, donor_id, by.x="niche", by.y="cell")
 check3 <- check2[,-1]

@@ -46,7 +46,7 @@ grid.arrange(grobs = plot.list, ncol=3)
 xendat <- FindClusters(xendat, resolution = c(0.1,0.13,0.15), graph.name = "RNA_snn")
 DimPlot(xendat, group.by="RNA_snn_res.0.13", raster=FALSE, cols = colurs, label=T, repel=T) & NoLegend()
 
-Idents(xendat) <- “RNA_snn_res.0.13”
+Idents(xendat) <- "RNA_snn_res.0.13"
 check <- FindAllMarkers(xendat, only.pos = T, logfc.threshold = 3)
 xendat <- RenameIdents(xendat, "0"="Fibroblasts", "1"="Myeloid", "2"="Endothelial cells", 
                        "3"="Plasma cells", "4"="Pericytes", "5"="T/NK cells", "6"="Lymphatics", 
@@ -110,7 +110,7 @@ tcells <- RenameIdents(tcells,"0"="T cells/B/Myeloid", "1"= "T cell/Fibroblast",
 tcells$anno2 <- tcells@active.ident
 
 levels(tcells) <- rev(c("CD4+ KLRB1+ T", "FOXP3+ Tregs","GZMK+ CD8+ T", "NK cells/ILCs","Cycling T","T cells/LL",
-                    "T cell/Fibroblast","T cells/B/Myeloid","T cell/Plasma cell","Vascular/T cell"))
+                        "T cell/Fibroblast","T cells/B/Myeloid","T cell/Plasma cell","Vascular/T cell"))
 keym <- unlist(str_split("KLRB1,IL7R,CCR2,CD4,CTLA4,FOXP3,IL2RA,CD8A,GZMK,CCL5,PRF1,GNLY,KLRD1,KLRC1,PRG4,PDGFRA,FBLN1,CD1C,MS4A1,FCER1A,MZB1,PRDM1,VWF,MYH11", pattern=","))
 DotPlot(tcells, features = keym) + formplot + labs(title="Key markers\n\n")
 
@@ -140,8 +140,8 @@ bcells <- RunUMAP(bcells, reduction = "harmony", dims=1:npc)
 
 bcells <- FindNeighbors(bcells, reduction= "harmony", dims = 1:npc, verbose = T)
 bcells <- FindClusters(bcells, resolution = c(0.05,0.1,0.2), graph.name = "RNA_snn")
-FeaturePlot(bcells, features=c("BANK1", "CXCR4", "PLD4", "MS4A1”, "SERPINB9", "TCF4", "SELL", "TCL1A"))
-
+FeaturePlot(bcells, features=c("BANK1", "CXCR4", "PLD4", "MS4A1", "SERPINB9", "TCF4", "SELL", "TCL1A"))
+                               
 Idents(bcells) <- "RNA_snn_res.0.2"
 markers <- FindAllMarkers(bcells, only.pos=T)
 
@@ -190,7 +190,7 @@ DimPlot(gran, group.by="RNA_snn_res.0.08", raster=FALSE, cols = colurs, label=T,
 Idents(gran) <- "RNA_snn_res.0.08"
 markers <- FindAllMarkers(gran, only.pos=T)
 
-Idents(gran) <- "RNA_snn_res.0.05”
+Idents(gran) <- "RNA_snn_res.0.05"
 DotPlot(gran, features=c("FCER1A","MS4A2", "SLC18A2","GATA2", "CPA3", "KIT", "CD69", "IL1RL1", "SOX18", "ELF5", "HES4", "ADIPOQ", "PTPRC", "PDGFRA", "MZB1", "GZMK")) & formplot & labs(title="Key markers\n\n")
 
 #################################################################
@@ -227,31 +227,31 @@ DimPlot(xen, group.by="temp2", label=T, repel=T) & scale_color_manual(values=col
 check <- as.data.frame(table(xen$temp2, xen$global13))
 check <- check[check$Freq >0,]
 result <- check %>%
-  group_by(Var1) %>%
-  filter(Freq == max(Freq)) %>%
-  ungroup()
+group_by(Var1) %>%
+filter(Freq == max(Freq)) %>%
+ungroup()
 
 # Unchanged 'Adipose','pDCs','Pericytes', 'Lymphatics', 'Plasma cells', 'NK cells/ILCs', 'CD1C+ cDC2s','Endothelial cells'
 
 Idents(xen) <- "temp2"
 xen <- RenameIdents(xen, 'macs'="Fibroblasts", 'Plasma cells/Myeloid'="Plasma cells", 
-                    'S1008A+ Monocytes'="S1008A+ monocytes", "Mixed fibroblasts/myeloid"="Myeloid cells", 
-                    "Mixed myeloid/B cells"="Myeloid cells",
-                    'Tcell_contam_myeloid'="Myeloid cells", 'Peri_contam_myeloid'="Myeloid cells", 'CD1C_DCs' ="pDCs",
-                    'MertK+ macrophages'="MerTK+ macrophages", 'proliferating_myeloid'="Cycling myeloid", 
-                    'B_cell_doublets'="Fibroblasts", 'LL'= "LL fibroblasts", 'Granulocytes / progenitors'= "Granulocytes",
-                    'fib_contam_myeloid'="Myeloid cells", 'LAMP3 DCs'="LAMP3+ DCs", 'B_cell_contam_myeloid'="Myeloid cells", 
-                    'Vascular plasma cells'="Plasma cells", "SPP1+ Macrophages"="SPP1+ macrophages",
-                    'POSTN'= "POSTN+ fibroblasts", 'Fibroblasts_macs'="Fibroblasts", 'CD4+ KLRB1+ T'="CD4+ KLRB1+ T cells", 
-                    'GZMK+ CD8+ T' = "GZMK+ CD8+ T cells", 'Tcell/Fibroblast'="Fibroblasts", 
-                    'T cell/Fibroblast'="T cells",  'Plasma cell/Granulocyte'="Plasma cells", 
-                    'Vascular/T cell'="T cells", 'CD34/MFAP5'= "CD34+ fibroblasts", 
-                    'SOX5/CDH11'= "SOX5+ CDH11+ fibroblasts", 'mac/LL'="LL fibroblasts", 'SFRP/CXCL12'= "CXCL12+ fibroblasts",
-                    'Tcell_contam'="Fibroblasts",  
-                    'Plasma cells/Fibroblasts'="Plasma cells", 'Granulocytes/progenitors'= "Granulocytes", 
-                    'T cells/LL'="Lining layer T cells", 
-                    'T cell/Plasma cell'="T cells", 'Lamp3_DCs'="LAMP3+ DCs", 
-                    "Cycling T cells"="Cycling T cells", "Cycling myeloid"="Cycling myeloid")
+'S1008A+ Monocytes'="S1008A+ monocytes", "Mixed fibroblasts/myeloid"="Myeloid cells", 
+"Mixed myeloid/B cells"="Myeloid cells",
+'Tcell_contam_myeloid'="Myeloid cells", 'Peri_contam_myeloid'="Myeloid cells", 'CD1C_DCs' ="pDCs",
+'MertK+ macrophages'="MerTK+ macrophages", 'proliferating_myeloid'="Cycling myeloid", 
+'B_cell_doublets'="Fibroblasts", 'LL'= "LL fibroblasts", 'Granulocytes / progenitors'= "Granulocytes",
+'fib_contam_myeloid'="Myeloid cells", 'LAMP3 DCs'="LAMP3+ DCs", 'B_cell_contam_myeloid'="Myeloid cells", 
+'Vascular plasma cells'="Plasma cells", "SPP1+ Macrophages"="SPP1+ macrophages",
+'POSTN'= "POSTN+ fibroblasts", 'Fibroblasts_macs'="Fibroblasts", 'CD4+ KLRB1+ T'="CD4+ KLRB1+ T cells", 
+'GZMK+ CD8+ T' = "GZMK+ CD8+ T cells", 'Tcell/Fibroblast'="Fibroblasts", 
+'T cell/Fibroblast'="T cells",  'Plasma cell/Granulocyte'="Plasma cells", 
+'Vascular/T cell'="T cells", 'CD34/MFAP5'= "CD34+ fibroblasts", 
+'SOX5/CDH11'= "SOX5+ CDH11+ fibroblasts", 'mac/LL'="LL fibroblasts", 'SFRP/CXCL12'= "CXCL12+ fibroblasts",
+'Tcell_contam'="Fibroblasts",  
+'Plasma cells/Fibroblasts'="Plasma cells", 'Granulocytes/progenitors'= "Granulocytes", 
+'T cells/LL'="Lining layer T cells", 
+'T cell/Plasma cell'="T cells", 'Lamp3_DCs'="LAMP3+ DCs", 
+"Cycling T cells"="Cycling T cells", "Cycling myeloid"="Cycling myeloid")
 xen$named2407 <- xen@active.ident      
 
 #################################################################

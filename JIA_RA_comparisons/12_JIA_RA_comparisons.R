@@ -253,16 +253,20 @@ save(kids, kid.data, kids.missing, kpt, file="/rds/projects/c/croftap-mapjagdata
 
 #################################################################
 
+# Exclude poor quality sample from analysis
+Idents(kids) <- "orig.ident"
+kids <- subset(kids, idents="1001", invert=T)
+  
 # Remove Fibrin regions from kids slides as these are not synovium and may have a large impact on cell proportions
 Idents(kids) <- "take2"
 kids <- subset(kids, idents=c("Fibrin", "Fibrin Macrophages",  "RBCs", "Neutrophil-rich", "Neutrophil/T cell-rich",
-                               "Artefact"), invert=T)
+                               "Artefact", "Blood/Fibrin"), invert=T)
 
 # Ensure common naming strategy
 kids <- RenameIdents(kids, "Endothelial cells-1"="Vascular", "Endothelial cells-2"="Vascular", 
                      "CD146-hi vessels"="Vascular", "SMA-hi vessels"="Vascular", "CD68+ Myeloid"="Myeloid cells", 
                      "LL Macrophages"="Myeloid cells", "Macrophages-2"="Myeloid cells", 
-                     "LYVE1-hi Macrophages"="Myeloid cells","Lymphatics"="Vascular")
+                     "LYVE1-hi Macrophages"="Myeloid cells")
 kids$take3 <- kids@active.ident
 
 # Remove fibrin regions from adult slides
@@ -272,7 +276,7 @@ adults <- subset(adults, idents=c("Fibrin", "Artefact", "RBCs", "Muscle"), inver
 adults <- RenameIdents(adults, "SMA-hi vessels"="Vascular", "SMA-low vessels"="Vascular", 
                        "LYVE1+ macrophages"="Myeloid cells", "LL macrophages"="Myeloid cells", 
                        "SL macrophages"="Myeloid cells", "B/T aggregates"="B/T cell aggregates", 
-                       "LL fibroblasts"="LL Fibroblasts", "Lymphatics"="Vascular")
+                       "LL fibroblasts"="LL Fibroblasts")
 adults$take3 <- adults@active.ident
 
 # Proportion of cells per donor per slide
@@ -302,7 +306,7 @@ perform_test <- function(data, group_col, value_col) {
 }
 
 plots <- list()
-cell.types <- c("Vascular", "Myeloid cells")
+cell.types <- c("Vascular", "Myeloid cells", "Lymphatics")
 
 for (i in seq_along(cell.types)) { 
   vascular_kids <- ptnum2 %>% filter(Var1 == cell.types[i])

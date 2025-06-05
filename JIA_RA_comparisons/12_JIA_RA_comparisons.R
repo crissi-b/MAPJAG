@@ -1,4 +1,4 @@
-#devtools::install_github("rpolicastro/scProportionTest")
+devtools::install_github("rpolicastro/scProportionTest")
 
 library(Seurat)
 library(ggplot2)

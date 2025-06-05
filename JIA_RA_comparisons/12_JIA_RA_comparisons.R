@@ -6,10 +6,6 @@ library(stringr)
 library(tidyverse)
 library(dplyr)
 library(magrittr)
-library(stringr)
-library(tidyverse)
-library(dplyr)
-library(magrittr)
 library(ggbiplot)
 library(splitstackshape)
 library(pheatmap)
@@ -23,10 +19,10 @@ library("scProportionTest")
 # Load amp2 samples 
 load(file="ampKNEE-RA-object")
 
-ampknee <- c(”BRI-413","BRI-415","BRI-421","BRI-462","BRI-475","BRI-503","BRI-542","BRI-562","BRI-605","BRI-623","BRI-625","BRI-566”,”BRI-401”)
+ampknee <- c("BRI-413","BRI-415","BRI-421","BRI-462","BRI-475","BRI-503","BRI-542","BRI-562","BRI-605","BRI-623","BRI-625","BRI-566","BRI-401")
 allAmp2 <- subset(amp2, sample %in% ampknee)
 # Subset down to samples with the disease for < 1 year (n=12)
-amp2 <- subset(allAmp2, idents=“BRI-401”, invert=T)
+amp2 <- subset(allAmp2, idents="BRI-401", invert=T)
 
 # Load MAPJAG tissue data & create an object of all the MAPJAG patients irrespective of disease duration
 load(file="/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/Global/sc-tissue.RData")
@@ -53,7 +49,7 @@ rest <- subset(amp2, idents=c("B-2: IgG1+IgG3+ plasma", "B-6: IgM+ plasma"), inv
 plasma <- subset(amp2, idents=c("B-2: IgG1+IgG3+ plasma", "B-6: IgM+ plasma"))
 plasma$cell_type <- "Plasma cells"
 new <- rbind(plasma[["cell_type"]], rest[["cell_type"]])
-amp2 <- AddMetaData(amp2, new, col.name="cell_type2”)
+amp2 <- AddMetaData(amp2, new, col.name="cell_type2")
 Idents(amp2) <- "cell_type2"
 amp2 <- RenameIdents(amp2, "T cell"="T cells", "NK"="NK cells / ILCs", "B cell/plasma cell"="B cells", "Myeloid cell"= "Myeloid cells", 
                      "Stromal cell"="Stromal cells", "Endothelial cell"="Endothelial cells")
@@ -83,7 +79,7 @@ grid.arrange(p1, p2, nrow=1)
 ptnum <- as.data.frame(table(allAmp2$orig.ident, allAmp2$cell_type2))
 ptnum <- ptnum[ptnum$Freq >0,]
 # Include patient with disease duration > 1 year but order them to be at the end of the line
-ptnum$Var1 <- factor(ptnum$Var1, levels=c("BRI-625", "BRI-415", "BRI-542", "BRI-475","BRI-503", "BRI-421", "BRI-566", "BRI-462", "BRI-413", "BRI-605", "BRI-623", "BRI-562”,”BRI-401))
+ptnum$Var1 <- factor(ptnum$Var1, levels=c("BRI-625", "BRI-415", "BRI-542", "BRI-475","BRI-503", "BRI-421", "BRI-566", "BRI-462", "BRI-413", "BRI-605", "BRI-623", "BRI-562","BRI-401))
 ptnum$Var2 <- factor(ptnum$Var2, levels=c("T cell", "NK",  "Plasma cells","B cell/plasma cell", "Myeloid cell", "Stromal cell", "Endothelial cell"))
 
 p1 <- ggplot(ptnum) + aes(x = Var1, y = Freq, fill=Var2) + geom_bar(position="fill", stat="identity") + 
@@ -153,7 +149,7 @@ amp2 <- amp2 %>% ScaleData(features = rownames(amp2)) %>%
   FindVariableFeatures() %>%
   RunPCA()
 
-# Transfer labels from JIA to RA- to compare using adult labels switch the ‘reference’ and ‘query’ objects in FindTransferAnchors() and the ‘refdata’ in TransferData()
+# Transfer labels from JIA to RA- to compare using adult labels switch the 'reference' and 'query' objects in FindTransferAnchors() and the 'refdata' in TransferData()
 transfer.anchors <- FindTransferAnchors(reference = tissue, query = amp2, dims=1:30, reduction = "rpca")
 celltype.predictions <- TransferData(anchorset = transfer.anchors, refdata = tissue$clusters2312, dims =1:30)
 amp2 <- AddMetaData(amp2, metadata = celltype.predictions)

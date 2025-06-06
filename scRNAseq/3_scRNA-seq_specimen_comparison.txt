@@ -162,7 +162,7 @@ corrs <- cor.test(condition_1_data$percent, condition_2_data$percent, method="sp
 labelP <- paste0("\nrho=",round(corrs$estimate, digits=2), "\n", "p=", round(corrs$p.value, digits=3))
 ggplot(cmerged, aes(x=(percent.x), y=(percent.y))) + 
   geom_point(size=3) + geom_smooth(method="lm", se=FALSE) +  theme_minimal() +
-  labs(x="Proportion of tissue cells",y="Proportion of PBMCs",title=paste0(cell_type, labelP)) & simple
+  labs(x="Proportion of tissue cells",y="Proportion of SFMCs",title=paste0(cell_type, labelP)) & simple
 
 cell_type <- "Cycling cells"
 condition_1_data <- subset(my_data, Clusters == cell_type & TYPE == "Tissue")
@@ -172,7 +172,7 @@ corrs <- cor.test(condition_1_data$percent, condition_2_data$percent, method="sp
 labelP <- paste0("\nrho=",round(corrs$estimate, digits=2), "\n", "p=", round(corrs$p.value, digits=3))
 ggplot(cmerged, aes(x=(percent.x), y=(percent.y))) + 
   geom_point(size=3) + geom_smooth(method="lm", se=FALSE) +  theme_minimal() +
-  labs(x="Proportion of tissue cells",y="Proportion of PBMCs",title=paste0(cell_type, labelP)) & simple
+  labs(x="Proportion of tissue cells",y="Proportion of SFMCs",title=paste0(cell_type, labelP)) & simple
 
 
 #################################################################
@@ -255,7 +255,7 @@ scale_sub_vst_mat <- t(scale(t(sub_vst_mat)))
 
 meta_new <- meta_data[, c("sample", "TYPE")]
 tcol <- c("Blood"= "red", "SF"= "blue","Tissue"= "green3")
-scol <- colorRampPalette(brewer.pal(8, "Greys"))(length(unique(ss_sm$sample)))
+scol <- colorRampPalette(brewer.pal(8, "Greys"))(length(unique(meta_new$sample)))
 names(scol) <- meta_new$sample 
 anno_cols <- HeatmapAnnotation(df = meta_new, col= list(TYPE = tcol, sample = scol))
 

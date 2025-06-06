@@ -6,7 +6,8 @@ library(RColorBrewer)
 library(SeuratObject)
 options(bitmapType='cairo')
 
-load(file="/rds/projects/c/croftap-1003568/analysis/setup_repeat_2/mt10_20-nc-protein-10000.rdata")
+# Load global object
+load(file="global-object.rdata")
 
 ### set graph graphics
 formplot <- list(RotatedAxis(), FontSize("8"), theme(axis.title.x=element_blank(), axis.title.y=element_blank()), scale_color_gradient2())

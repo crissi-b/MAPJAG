@@ -79,7 +79,7 @@ cyclM <- subset(Tcell, idents= c(55,48,42))
 cyclM <- RenameIdents(cyclM, "55"="Likely Doublet", "48"="Likely Doublet", "42"="Cycling Myeloid")
 cyclM$named <- cyclM@active.ident
 clusters <- cyclM[["named"]]
-write.csv(clusters, file="/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/Global/CyMy_clusters")
+write.csv(clusters, file="CyMy_clusters")
 
 # Subset out doublets / contaminants that are not T cells
 Tcell <- subset(Tcell, idents= c(55,48,42), invert = T)
@@ -165,7 +165,7 @@ idents8 <- c("CD4+ naive/central memory T", "CD4+ KLRB1+ memory T", "CXCL13+ TpH
 levels(Tcell) <- rev(idents8)
 Tcell$simple8 <- factor(Tcell$simple8, levels=rev(idents8))
  clusters <- Tcell[["simple8"]]
-write.csv(clusters, file="/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/Global/T_clusters")
+write.csv(clusters, file="T_clusters")
 
 
 #################################################################

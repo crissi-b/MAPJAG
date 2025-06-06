@@ -126,6 +126,11 @@ ggplot(cordf, aes(y = variable, x = comparison)) +
 
 #################################################################
 
+simple <- list(theme(panel.grid.major = element_blank(),   # Remove major grid lines
+                     panel.grid.minor = element_blank(),   # Remove minor grid lines
+                     panel.border = element_rect(color = "black", fill = NA, linewidth = 0.7),  
+                     plot.background = element_rect(color = "black", fill = NA, linewidth = 0.7))) 
+
 
 # Now plot the individual examples of correlated proportions that had a P value > 0.05
 
@@ -324,7 +329,7 @@ FilteredGeneID <- unique(all_degs$gene)
 index <- match(FilteredGeneID, annotation_gs$gene_name)
 ensemblUni <- annotation_gs$ensembl_id[index]
 ensemblUni <- na.omit(ensemblUni)
-all_degs_cleaned<-na.omit(res1_cleaned)
+all_degs_cleaned<-na.omit(all_degs_cleaned)
 
 go.results <- runGO.all(results=all_degs_cleaned,
                         background_ids = ensemblUni, gene_id_col="ensembl", gene_id_type="ensembl", sample_col="cluster", p_col="padj", p_threshold=0.05,

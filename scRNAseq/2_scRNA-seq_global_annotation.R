@@ -1,8 +1,6 @@
 library(Seurat)
 library(ggplot2)
 library(tidyverse)
-library(dplyr)
-library(magrittr)
 library(data.table)
 library(RColorBrewer)
 library(SeuratObject)
@@ -75,8 +73,8 @@ ggplot(ptnum) + aes(x = Var2, y = Freq, fill=Var1) + geom_bar(position="stack", 
 # Needs trouble-shooting
 
 # Extract haematopoietic cells
-Idents(PBMC1) <- "label15"
-haem <- subset(PBMC1, idents=c("Endothelial", "Lymphatics", "Fibroblasts", "Pericytes"), invert=T)
+Idents(PBMC1) <- "label15s"
+haem <- subset(PBMC1, idents=c("Endothelial cells", "Lymphatics", "Fibroblasts", "Pericytes"), invert=T)
 
 
 dat <- table(haem@meta.data$label15s,haem@meta.data$sample)

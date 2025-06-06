@@ -4,7 +4,6 @@ library(future)
 library(ggplot2)
 library(cowplot)
 library(patchwork) 
-options(bitmapType='cairo')
 library(grid)
 library(gridExtra)
 library(ggExtra)
@@ -13,16 +12,16 @@ library(dplyr)
 library(magrittr)
 library(stringr)
 library(RColorBrewer)
-setwd("/rds/projects/c/croftap-1003568/analysis/setup_repeat_2/")
+options(bitmapType='cairo')
 
 ### set graph graphics
 formplot <- list(RotatedAxis(), FontSize("9"), theme(axis.title.x=element_blank(), axis.title.y=element_blank()), scale_color_gradient2())
 sparseplot <- list(NoAxes(), NoLegend())
 thin <- theme(axis.title.x=element_blank(), axis.title.y=element_blank())
 
+# set to data directory
 data.10x = list()
 dirs <- list.dirs("/rds/projects/c/croftap-1003568/analysis/setup_repeat/all", recursive = FALSE)
-
 samples <-sub('/rds/projects/c/croftap-1003568/analysis/setup_repeat/all/', '', dirs)
 
 #1 copy files, then run loop to make seurat list

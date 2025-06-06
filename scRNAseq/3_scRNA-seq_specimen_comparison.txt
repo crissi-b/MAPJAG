@@ -1,7 +1,6 @@
 library(scProportionTest)
 library(ggfortify)
 library(DESeq2)
-library(dplyr)
 library(ComplexHeatmap)
 library(data.table)
 library(gsfisher)
@@ -13,7 +12,6 @@ library(splitstackshape)
 library(scater)
 library(tidyverse)
 library(edgeR)
-library(magrittr)
 library(Matrix)
 library(purrr)
 library(reshape2)
@@ -25,13 +23,13 @@ library(ggpubr)
 #################################################################
 
 # Load global object
-load(file="/rds/projects/c/croftap-1003568/analysis/setup_repeat_2/mt10_20-nc-protein-10000.rdata")
+load(file="global-object")
 
 ## Compare proportions of haematopoietic cells between tissue and PBMC
 
 # Extract haematopoietic cells
-Idents(PBMC1) <- "label15"
-haem <- subset(PBMC1, idents=c("Endothelial", "Lymphatics", "Fibroblasts", "Pericytes"), invert=T)
+Idents(PBMC1) <- "label15s"
+haem <- subset(PBMC1, idents=c("Endothelial cells", "Lymphatics", "Fibroblasts", "Pericytes"), invert=T)
 
 
 #################################################################
@@ -180,15 +178,16 @@ ggplot(cmerged, aes(x=(percent.x), y=(percent.y))) +
 # Code for generating bar plots of the total number of differentially expressed genes is provided at the bottom
 
 # Load T cell object
-load(file="/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/T-cells/2307-QC-CD4-CD8-NK_together/2307_CD4-CD8-NK-no_BC-final")
-DefaultAssay(PBMC1) <- "RNA"
-Idents(PBMC1) <- "simple8"
+load(file="t-cell-object")
+DefaultAssay(tcell) <- "RNA"
+Idents(tcell) <- "simple8"
 
-PBMC1 -> v3
+tcell -> v3
 
 # Pseudobulk and create meta.data
 v3$sampleTYPE <-paste(v3$TYPE, v3$sample, sep="_")
 Idents(v3) <- "sampleTYPE"
+
 # AggregateExpression will sum counts when slot is set to "counts"
 cts_v3 <- AggregateExpression(v3, group.by = c("sampleTYPE"), assays = "RNA", slot = "counts", return.seurat = F)
 cts_v3<-cts_v3$RNA
@@ -205,14 +204,12 @@ meta_data$all <- factor(meta_data$all)
 meta_data$TYPE <- factor(meta_data$TYPE)
 
 dds <- DESeqDataSetFromMatrix(countData = cts_v3, colData = meta_data, design = ~1)
-
 dds <- scran::computeSumFactors(dds)
 
 min_gene <- quantile(rowSums(counts(dds)), 0.5)
 max_gene <- quantile(rowSums(counts(dds)), 0.999)
 keep <- rowSums(counts(dds)) > min_gene & rowSums(counts(dds)) < max_gene
 dds <- dds[keep, ]
-
 dds@colData[['TYPE']] <- factor(dds@colData[['TYPE']],
                                 levels = c("Tissue", "Blood", "SF"))
                                                                                                               
@@ -222,11 +219,10 @@ dds <- DESeq(dds, test = "Wald")
 targetvar <- "TYPE"
 
 comparisons <- data.frame(t(combn(unique(as.character(meta_data[[targetvar]])), 2)))
-
 gene_comp <- apply(comparisons, 1, function(cp) {
   comparison <- paste0(cp[1], "_vs_", cp[2])
   degs <- as.data.frame(results(dds, contrast = c(targetvar, cp[1], cp[2])))
-  degs[["gene"]] <- rownames(res)
+  degs[["gene"]] <- rownames(degs)
   degs[["comparison"]] <- comparison
   degs
 })
@@ -250,7 +246,6 @@ deseq2VST <- assay(deseq2VST)
 deseq2VST<-as.matrix(deseq2VST)
 sub_vst_mat <- deseq2VST[rownames(deseq2VST) %in% gene_filter, ]
 scale_sub_vst_mat <- t(scale(t(sub_vst_mat)))
-
 
 
 meta_new <- meta_data[, c("sample", "TYPE")]

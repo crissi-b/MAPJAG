@@ -4,19 +4,19 @@ library(ggplot2)
 library(knitr)
 library(stringr)
 library(tidyverse)
-library(dplyr)
 library(grid)
 library(gridExtra)
 library(ggExtra)
-library(stringr)
 library(RColorBrewer)
 library(SeuratObject)
+library(splitstackshape)
 library(pheatmap)
 
 
 # Load tissue object and integrated samples
-load(file="/rds/projects/c/croftap-1003568/analysis/setup_repeat_2/mt10_20-nc-protein-10000.rdata")
-load(file="/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/Global/sc-tissue.RData")
+load(file="global-object.rdata")
+load(file="tissue-object.RData")
+
 heatcol <- rev(brewer.pal(8, "RdBu"))
 
 # Genes associated with extension based on a fold change above 2 and significant P value
@@ -81,7 +81,7 @@ pheatmap(fbBRES, scale="row", col= heatcol)
 
 # Modules of genes in stromal cells
 # Load stromal object
-load(file="/rds/projects/c/croftap-mapjagdata/CellDive/stromal-object")
+load(file="stromal-object")
 Idents(seurat_obj) <- "clusters2"
 DefaultAssay(seurat_obj) <- "RNA"
 

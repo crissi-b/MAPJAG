@@ -1,4 +1,4 @@
-#remotes::install_github("korsunskylab/spatula")
+remotes::install_github("korsunskylab/spatula")
 
 library(Seurat)
 library(ggplot2)
@@ -12,7 +12,6 @@ library(cowplot)
 library(tidyverse)
 library(pheatmap)
 library(grid)
-
 library(data.table)
 library(devtools)
 library(spatula)
@@ -296,12 +295,11 @@ filtered_geoms_f_f_sf <- geoms_f_f_sf %>%
   filter(st_intersects(geometry, bbox, sparse = FALSE))
 
 cellcols <- c("Myeloid cells"= "yellow", "Plasma cells"="deeppink", "Cycling plasma cells"="blue",
-             "Granulocytes"="orange", 
-               "Other”=“grey97”, "Pericytes"= “grey80”,  "Endothelial cells”=“grey80”, "Lymphatics”=“grey80”,
-              "Lining layer T cells”=“darkgrey”, "SPP1+ macrophages”=“darkgrey”,
-              "LL fibroblasts”=“darkgrey”, "Cycling fibroblasts"= “darkgrey”,”LAMP3+ DCs"= “darkgrey”,
-              "Cycling myeloid"= “darkgrey”)
-             
+              "Granulocytes"="orange", 
+              "Other"="grey97", "Pericytes"= "grey80",  "Endothelial cells"="grey80", "Lymphatics"="grey80",
+              "Lining layer T cells"="darkgrey", "SPP1+ macrophages"="darkgrey",
+              "LL fibroblasts"="darkgrey", "Cycling fibroblasts"= "darkgrey","LAMP3+ DCs"= "darkgrey",
+              "Cycling myeloid"= "darkgrey")             
 
 filtered_geoms_f_f_sf <- filtered_geoms_f_f_sf %>%
   mutate(fill_color = ifelse(named2407 %in% names(cellcols), named2407, "Other"))
@@ -329,9 +327,9 @@ filtered_geoms_f_f_sf <- geoms_f_f_sf %>%
   filter(st_intersects(geometry, bbox, sparse = FALSE))
 
 cellcols <- c("Adipose"="green", "Granulocytes"="orange", "CXCL12+ fibroblasts"="blue", "POSTN+ fibroblasts"="yellow",
-              "Other"="#C1C1C1", "Pericytes"= “grey80”,  "Endothelial cells”=“grey80”, "Lymphatics”=“grey80”,
+              "Other"="#C1C1C1", "Pericytes"= "grey80",  "Endothelial cells"="grey80", "Lymphatics"="grey80",
               "Lining layer T cells"="darkgrey", "SPP1+ macrophages"="darkgrey",
-              "LL fibroblasts”=“darkgrey”, "Cycling fibroblasts"= "darkgrey","LAMP3+ DCs"= "darkgrey",
+              "LL fibroblasts"="darkgrey", "Cycling fibroblasts"= "darkgrey","LAMP3+ DCs"= "darkgrey",
               "Cycling myeloid"= "darkgrey")
 
 filtered_geoms_f_f_sf <- filtered_geoms_f_f_sf %>%
@@ -382,7 +380,7 @@ for (i in 1:length(iden1)) {
   selec$Var2.y <- as.numeric(as.character(selec$Var2.y))
   coro <- cor.test(selec$Var2.y, selec$percent, method="pearson")
   labo <- paste0("\nr=",round(coro$estimate, digits=2), "\n", "P =", round(coro$p.value, digits=3))
-   image.list[[i]] <- ggplot(selec, aes(x=Var2.y, y=percent)) + geom_point() + labs(x="Infiltrate score", y="Tissue cells (%)", title=paste0(iden, labo)) + geom_smooth(method="lm", se=FALSE) + theme(panel.border = element_rect(colour = "black", fill = NA),panel.grid = element_blank(),panel.background = element_blank())
+  image.list[[i]] <- ggplot(selec, aes(x=Var2.y, y=percent)) + geom_point() + labs(x="Infiltrate score", y="Tissue cells (%)", title=paste0(iden, labo)) + geom_smooth(method="lm", se=FALSE) + theme(panel.border = element_rect(colour = "black", fill = NA),panel.grid = element_blank(),panel.background = element_blank())
   summary[i] <- paste0(iden1[i],"  ", labo)
   #summary[i] <- paste0(sig[i],"  ", labo)
   values <- as.data.frame(cbind(paste0(iden[1]), round(coro$estimate, digits=2),  round(coro$p.value, digits=3)))
@@ -416,7 +414,7 @@ for (i in 1:length(iden1)) {
   selec$Var2.y <- as.numeric(as.character(selec$Var2.y))
   coro <- cor.test(selec$Var2.y, selec$percent, method="pearson")
   labo <- paste0("\nr=",round(coro$estimate, digits=2), "\n", "P =", round(coro$p.value, digits=3))
-	image.list[[i]] <- ggplot(selec, aes(x=Var2.y, y=percent)) + geom_point() + labs(x="Infiltrate score", y="Tissue cells (%)", title=paste0(iden, labo)) + geom_smooth(method="lm", se=FALSE) + theme(panel.border = element_rect(colour = "black", fill = NA),panel.grid = element_blank(),panel.background = element_blank())
+  image.list[[i]] <- ggplot(selec, aes(x=Var2.y, y=percent)) + geom_point() + labs(x="Infiltrate score", y="Tissue cells (%)", title=paste0(iden, labo)) + geom_smooth(method="lm", se=FALSE) + theme(panel.border = element_rect(colour = "black", fill = NA),panel.grid = element_blank(),panel.background = element_blank())
   summary[i] <- paste0(iden1[i],"  ", labo)
   #summary[i] <- paste0(sig[i],"  ", labo)
   values <- as.data.frame(cbind(paste0(iden[1]), round(coro$estimate, digits=2),  round(coro$p.value, digits=3)))
@@ -537,7 +535,7 @@ coloc_all_types = function(index_types, coords, y, nperm = 100, nsteps=1, max_di
   adj = Matrix::drop0(adj)
   adj@x = rep(1, length(adj@x))
   ## If nsteps>1, consider not only your adjacent neighbors
-  ##   but also your neighbor’s neighbors etc.
+  ##   but also your neighbor's neighbors etc.
   if (nsteps > 1) {
     adj = adj + Matrix::Diagonal(n = nrow(adj)) ## add self
     for (iter in seq_len(nsteps - 1)) {
@@ -560,14 +558,14 @@ coloc_all_types = function(index_types, coords, y, nperm = 100, nsteps=1, max_di
 
 # Now run functions on code
 coloc_res_coarse_global<- coloc_all_types(
-        index_type = unique(ggsplit$named),
-        coords = ggsplit[, c("x", "y")],
-        y = ggsplit$named,
-        compartments = NULL,
-        max_dist = 40,
-        nperm = 1000,
-        parallel = TRUE
-    )
+  index_type = unique(ggsplit$named),
+  coords = ggsplit[, c("x", "y")],
+  y = ggsplit$named,
+  compartments = NULL,
+  max_dist = 40,
+  nperm = 1000,
+  parallel = TRUE
+)
 
 # Create proximity matrix
 plt_df <- coloc_res_coarse_global %>%
@@ -585,7 +583,7 @@ plt_df %>%
 plt_df_use <- t(plt_df)+plt_df
 plt_df_use %>%
   Heatmap(col = circlize::colorRamp2(c(-20, 0, 20), c('blue', 'white', 'red')), border = T, 
-  cluster_columns = T, cluster_rows = T) 
+          cluster_columns = T, cluster_rows = T) 
 
 
 #################################################################
@@ -675,7 +673,7 @@ filtered_geoms_f_f_sf <- geoms_f_f_sf %>%
 cellcols <- c("CXCL12+ fibroblasts" = "cyan", "CD34+ fibroblasts"= "forestgreen","SOX5+ CDH11+ fibroblasts" ="blue2",
               "POSTN+ fibroblasts" ="yellow", "Granulocytes"= "orange", "LL fibroblasts"="deeppink", 
               "Cycling fibroblasts"="lavender",
-             "Other"="#D0D1CF", "Pericytes"= "lightblue",  "Endothelial cells"="lightblue")
+              "Other"="#D0D1CF", "Pericytes"= "lightblue",  "Endothelial cells"="lightblue")
 
 filtered_geoms_f_f_sf <- filtered_geoms_f_f_sf %>%
   mutate(fill_color = ifelse(named2407 %in% names(cellcols), named2407, "Other"))

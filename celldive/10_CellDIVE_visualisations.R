@@ -59,11 +59,11 @@ DotPlot(dotp, features =gen3) & formplot
 # Set colours of cells
 group.color <- c("SMA-hi vessels"="steelblue1", "CD146-hi vessels"="green", 
                  "Endothelial cells"="brown","RBCs"="red",
-                  "CLU+ Fibroblasts"="aquamarine3", "COL1-hi Fibroblasts"="lemonchiffon",  
+                 "CLU+ Fibroblasts"="aquamarine3", "COL1-hi Fibroblasts"="lemonchiffon",  
                  "POSTN-hi Fibroblasts"="salmon","SL Fibroblasts"="palegoldenrod",
                  "LL Fibroblasts"= "magenta", "Sparse cells"= "darkseagreen1",
                  "COL6-hi Fibroblasts"="lavender", "COL3-hi Fibroblasts"="orchid4",
-                  "LL Macrophages"="yellow",  "CD68+ Myeloid"="yellow3", 
+                 "LL Macrophages"="yellow",  "CD68+ Myeloid"="yellow3", 
                  "T cells" ="cyan", 
                  "B/T cell aggregates"=  "lavenderblush2",
                  "Adipose"="mediumspringgreen",  "Mast cells"="darkorange", 
@@ -72,14 +72,14 @@ group.color <- c("SMA-hi vessels"="steelblue1", "CD146-hi vessels"="green",
                  "Neutrophil-rich"="plum2", "Neutrophil/T cell-rich"="steelblue", "Fibrin-2"="beige")
 
 setv <- list(theme(panel.background = element_rect(fill = 'black'), 
-               panel.grid.major = element_blank(),
-               panel.grid.minor = element_blank(),
-               axis.title.x = element_blank(),
-               axis.title.y = element_blank(),
-               axis.text = element_blank(),
-               legend.background = element_rect(fill = "black", color = NA),
-               legend.key = element_rect(color = "gray", fill = "black"),
-               legend.text = element_text(color = "white"))) 
+                   panel.grid.major = element_blank(),
+                   panel.grid.minor = element_blank(),
+                   axis.title.x = element_blank(),
+                   axis.title.y = element_blank(),
+                   axis.text = element_blank(),
+                   legend.background = element_rect(fill = "black", color = NA),
+                   legend.key = element_rect(color = "gray", fill = "black"),
+                   legend.text = element_text(color = "white"))) 
 
 # Visualise example
 i <- 7 
@@ -175,14 +175,14 @@ small <- test[test$Centroid.Y.µm > 3900 & test$Centroid.X.µm < 3000,]
 iden1 <- iden[grep("Mast|CD68|Fibrin|LL F|Neut|ves", iden)]
 small <- small[small$named1 %in% iden1,]
 
-group.color <- c("SMA-hi vessels”=“red”, "CD146-hi vessels”=“red”, 
-                 "LL Fibroblasts"= “steelblue3”,  "CD68+ Myeloid"="yellow", 
-                  "Mast cells"="darkorange",  "Fibrin”=“lightpink”, 
-                 "Neutrophil-rich”=“deeppink”, "Neutrophil/T cell-rich”=“deeppink”)
-
+group.color <- c("SMA-hi vessels"="red", "CD146-hi vessels"="red", 
+                 "LL Fibroblasts"= "steelblue3",  "CD68+ Myeloid"="yellow", 
+                 "Mast cells"="darkorange",  "Fibrin"="lightpink", 
+                 "Neutrophil-rich"="deeppink", "Neutrophil/T cell-rich"="deeppink")
+                 
 ggplot(small, aes(x = Centroid.X.µm, y = Centroid.Y.µm, color=named1)) +
-  geom_point(size=1) & scale_color_manual(values=group.color) &
-  guides(colour = guide_legend(override.aes = list(size=5))) & setv
+geom_point(size=1) & scale_color_manual(values=group.color) &
+guides(colour = guide_legend(override.aes = list(size=5))) & setv
 
 ####################################################################################
 ####################################################################################
@@ -202,12 +202,12 @@ iden <- unique(all$take2)
 small <- test[test$Centroid.X.µm < 2500  &  test$Centroid.Y.µm < 2000,]
 iden1 <- iden[grep("CD68|Fibrin|Neut", iden)]
 
-group.color <- c(“Fibrin “Macrophages= “yellow”,  "CD68+ Myeloid"="yellow",  "Fibrin”=“lightpink”, 
-                 "Neutrophil-rich”=“deeppink”, "Neutrophil/T cell-rich”=“deeppink”)
-
+group.color <- c("Fibrin "Macrophages= "yellow",  "CD68+ Myeloid"="yellow",  "Fibrin"="lightpink", 
+                  "Neutrophil-rich"="deeppink", "Neutrophil/T cell-rich"="deeppink")
+                  
 ggplot(small, aes(x = Centroid.X.µm, y = Centroid.Y.µm, color=named1)) +
-  geom_point(size=1) & coord_flip() & scale_color_manual(values=group.color) & scale_x_reverse() &
-  guides(colour = guide_legend(override.aes = list(size=5))) & setv
+geom_point(size=1) & coord_flip() & scale_color_manual(values=group.color) & scale_x_reverse() &
+guides(colour = guide_legend(override.aes = list(size=5))) & setv
 
 ####################################################################################
 ####################################################################################

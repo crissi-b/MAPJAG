@@ -136,7 +136,7 @@ ptnum2 <- as.data.frame(table(pDC$clusters2312, pDC$TYPE))
 ptnum <- rbind(ptnum,ptnum2)
 ptnum <- ptnum %>% group_by(Var2) %>% mutate(percent =  Freq*100/sum(Freq))
 ptnum$Var2 <- factor(ptnum$Var2, levels=rev(c("Blood", "SF", "Tissue")))
-ptnum$Var1 <- factor(ptnum$Var1, levels=rev(c("S1008A+ Monocytes", "SLC8A1+ Myeloid cells", "IL1B+ Myeloid cells", "SPP1+ Macrophages", "MerTK+ Macrophages", "TCF7L2+ DCs", "Plasmacytoid DCs", "CD1C+ cDC2s", "CLEC9A+ cDC1s", "LAMP3+ DCs")))
+ptnum$Var1 <- factor(ptnum$Var1, levels=rev(c("S100A8+ Monocytes", "SLC8A1+ Myeloid cells", "IL1B+ Myeloid cells", "SPP1+ Macrophages", "MerTK+ Macrophages", "TCF7L2+ DCs", "Plasmacytoid DCs", "CD1C+ cDC2s", "CLEC9A+ cDC1s", "LAMP3+ DCs")))
 
 p3 <- ggplot(ptnum) + aes(x = Var1, y = percent, fill=Var2) + geom_bar(position="fill", stat="identity") +
   labs(x="\n\n", y = "\nProportion of Specimen Type by Cluster\n") + 

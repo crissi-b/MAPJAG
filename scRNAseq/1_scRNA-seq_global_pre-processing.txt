@@ -218,11 +218,6 @@ PBMC1 <- RenameIdents(PBMC1, "s9_1_B"="B91","s8_4_B"="B84","s9_5_B"="B95", "s9_1
 PBMC1$sample <- PBMC1@active.ident
 unique(PBMC1$sample)
 
-
-b1 <- unlist(str_split('s9_1_B s8_4_B s9_5_B s9_1_SF s8_4_SF s9_5_SF', pattern=','))
-b2 <- str_split('8_4_T s8_4 s8_8_T s8_8_B s8_8_SF s8_11_T s8_11_B s8_11_SF s9_5_T s9_7_T s9_7_B s9_7_SF s9_8_T s9_8_B s9_8_SF', pattern=' ')
-b3 <- str_split('8_14_T s8_14_B s8_14_SF s8_17_T s8_17_B s8_17_SF s9_6_T s9_9_T s9_10_T', pattern=' ')
-
 # Add batch number
 Idents(PBMC1) <- "orig.ident"
 PBMC1 <- RenameIdents(PBMC1, "s9_1_B"="batch1","s8_4_B"="batch1","s9_5_B"="batch1", "s9_1_SF"="batch1","s8_4_SF"="batch1","s9_5_SF"="batch1",

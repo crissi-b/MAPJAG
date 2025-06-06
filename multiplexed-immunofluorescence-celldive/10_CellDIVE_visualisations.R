@@ -1,3 +1,26 @@
+remotes::install_github("korsunskylab/spatula")
+
+options(bitmapType='cairo')
+library(Seurat)
+library(dplyr)
+library(sctransform)
+library(ggplot2)
+library(pheatmap)
+library(RColorBrewer)
+
+library(devtools)
+library(spatula)
+library(furrr)
+
+library(data.table)
+library(splitstackshape)
+library(ggpubr)
+library(rstatix)
+library(DescTools)
+library(textshape)
+library(dplyr)
+library(tidyverse)
+library(ComplexHeatmap)
 
 # load CellDive objects
 
@@ -59,11 +82,11 @@ DotPlot(dotp, features =gen3) & formplot
 # Set colours of cells
 group.color <- c("SMA-hi vessels"="steelblue1", "CD146-hi vessels"="green", 
                  "Endothelial cells"="brown","RBCs"="red",
-                  "CLU+ Fibroblasts"="aquamarine3", "COL1-hi Fibroblasts"="lemonchiffon",  
+                 "CLU+ Fibroblasts"="aquamarine3", "COL1-hi Fibroblasts"="lemonchiffon",  
                  "POSTN-hi Fibroblasts"="salmon","SL Fibroblasts"="palegoldenrod",
                  "LL Fibroblasts"= "magenta", "Sparse cells"= "darkseagreen1",
                  "COL6-hi Fibroblasts"="lavender", "COL3-hi Fibroblasts"="orchid4",
-                  "LL Macrophages"="yellow",  "CD68+ Myeloid"="yellow3", 
+                 "LL Macrophages"="yellow",  "CD68+ Myeloid"="yellow3", 
                  "T cells" ="cyan", 
                  "B/T cell aggregates"=  "lavenderblush2",
                  "Adipose"="mediumspringgreen",  "Mast cells"="darkorange", 
@@ -72,14 +95,14 @@ group.color <- c("SMA-hi vessels"="steelblue1", "CD146-hi vessels"="green",
                  "Neutrophil-rich"="plum2", "Neutrophil/T cell-rich"="steelblue", "Fibrin-2"="beige")
 
 setv <- list(theme(panel.background = element_rect(fill = 'black'), 
-               panel.grid.major = element_blank(),
-               panel.grid.minor = element_blank(),
-               axis.title.x = element_blank(),
-               axis.title.y = element_blank(),
-               axis.text = element_blank(),
-               legend.background = element_rect(fill = "black", color = NA),
-               legend.key = element_rect(color = "gray", fill = "black"),
-               legend.text = element_text(color = "white"))) 
+                   panel.grid.major = element_blank(),
+                   panel.grid.minor = element_blank(),
+                   axis.title.x = element_blank(),
+                   axis.title.y = element_blank(),
+                   axis.text = element_blank(),
+                   legend.background = element_rect(fill = "black", color = NA),
+                   legend.key = element_rect(color = "gray", fill = "black"),
+                   legend.text = element_text(color = "white"))) 
 
 # Visualise example
 i <- 7 
@@ -175,35 +198,35 @@ small <- test[test$Centroid.Y.µm > 3900 & test$Centroid.X.µm < 3000,]
 iden1 <- iden[grep("Mast|CD68|Fibrin|LL F|Neut|ves", iden)]
 small <- small[small$named1 %in% iden1,]
 
-group.color <- c("SMA-hi vessels”=“red”, "CD146-hi vessels”=“red”, 
-                 "LL Fibroblasts"= “steelblue3”,  "CD68+ Myeloid"="yellow", 
-                  "Mast cells"="darkorange",  "Fibrin”=“lightpink”, 
-                 "Neutrophil-rich”=“deeppink”, "Neutrophil/T cell-rich”=“deeppink”)
-
-ggplot(small, aes(x = Centroid.X.µm, y = Centroid.Y.µm, color=named1)) +
-  geom_point(size=1) & scale_color_manual(values=group.color) &
-  guides(colour = guide_legend(override.aes = list(size=5))) & setv
-
-####################################################################################
-####################################################################################
-
-# Visualise neutrophil fibrin example
-
-i <- 2
-
-nom <- pt[[i]]
-Idents(all) <- "orig.ident"
-M915 <- subset(all, idents=nom)
-M915_meta <- M915@meta.data
-test <- data_x_y[[nom]]
-test$named1 <- M915$take2
-iden <- unique(all$take2)
-
-small <- test[test$Centroid.X.µm < 2500  &  test$Centroid.Y.µm < 2000,]
-iden1 <- iden[grep("CD68|Fibrin|Neut", iden)]
-
-group.color <- c(“Fibrin “Macrophages= “yellow”,  "CD68+ Myeloid"="yellow",  "Fibrin”=“lightpink”, 
-                 "Neutrophil-rich”=“deeppink”, "Neutrophil/T cell-rich”=“deeppink”)
+group.color <- c("SMA-hi vessels"="red", "CD146-hi vessels"="red", 
+                 "LL Fibroblasts"= "steelblue3",  "CD68+ Myeloid"="yellow", 
+                 "Mast cells"="darkorange",  "Fibrin"="lightpink", 
+                 "Neutrophil-rich"="deeppink", "Neutrophil/T cell-rich"="deeppink")
+                 
+                 ggplot(small, aes(x = Centroid.X.µm, y = Centroid.Y.µm, color=named1)) +
+                 geom_point(size=1) & scale_color_manual(values=group.color) &
+                 guides(colour = guide_legend(override.aes = list(size=5))) & setv
+                 
+                 ####################################################################################
+                 ####################################################################################
+                 
+                 # Visualise neutrophil fibrin example
+                 
+                 i <- 2
+                 
+                 nom <- pt[[i]]
+                 Idents(all) <- "orig.ident"
+                 M915 <- subset(all, idents=nom)
+                 M915_meta <- M915@meta.data
+                 test <- data_x_y[[nom]]
+                 test$named1 <- M915$take2
+                 iden <- unique(all$take2)
+                 
+                 small <- test[test$Centroid.X.µm < 2500  &  test$Centroid.Y.µm < 2000,]
+                 iden1 <- iden[grep("CD68|Fibrin|Neut", iden)]
+                 
+                 group.color <- c("Fibrin "Macrophages= "yellow",  "CD68+ Myeloid"="yellow",  "Fibrin"="lightpink", 
+                 "Neutrophil-rich"="deeppink", "Neutrophil/T cell-rich"="deeppink")
 
 ggplot(small, aes(x = Centroid.X.µm, y = Centroid.Y.µm, color=named1)) +
   geom_point(size=1) & coord_flip() & scale_color_manual(values=group.color) & scale_x_reverse() &
@@ -212,34 +235,7 @@ ggplot(small, aes(x = Centroid.X.µm, y = Centroid.Y.µm, color=named1)) +
 ####################################################################################
 ####################################################################################
 
-
 # Proximity analysis
-
-#remotes::install_github("korsunskylab/spatula")
-
-options(bitmapType='cairo')
-library(Seurat)
-library(dplyr)
-library(sctransform)
-library(ggplot2)
-library(pheatmap)
-library(RColorBrewer)
-
-library(devtools)
-library(spatula)
-library(furrr)
-
-library(data.table)
-library(splitstackshape)
-library(ggpubr)
-library(rstatix)
-library(DescTools)
-library(textshape)
-library(dplyr)
-library(tidyverse)
-library(ComplexHeatmap)
-
-
 # Read in Seurat object, filtered coordinates, vector of patients and artefactual coordinates
 
 setwd("/rds/projects/c/croftap-mapjagdata/CellDive/Panel-2/")
@@ -334,7 +330,7 @@ coloc_all_types = function(index_types, coords, y, nperm = 100, nsteps=1, max_di
   adj = Matrix::drop0(adj)
   adj@x = rep(1, length(adj@x))
   ## If nsteps>1, consider not only your adjacent neighbors
-  ##   but also your neighbor’s neighbors etc.
+  ##   but also your neighbor's neighbors etc.
   if (nsteps > 1) {
     adj = adj + Matrix::Diagonal(n = nrow(adj)) ## add self
     for (iter in seq_len(nsteps - 1)) {

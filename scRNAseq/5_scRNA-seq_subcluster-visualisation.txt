@@ -36,38 +36,39 @@ colurs <- c(brewer.pal(8, "Set2"), brewer.pal(8, "Dark2"), brewer.pal(8, "Set1")
 
 # Create UMAPS of the subclustered cells and CSV files of the subcluster barcode annotations
 
-load("/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/B-cells/2401_B-cell-object")
+load("b-cell-object")
 PBMC1 -> Bcell
 DefaultAssay(Bcell) <- "RNA"
 Idents(Bcell) <- "label5"
 Bclust <- Bcell[["label5"]]
 
-load(file="/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/T-cells/2307-QC-CD4-CD8-NK_together/2307_CD4-CD8-NK-no_BC-final")
+load(file="t-cell-object")
 PBMC1 -> Tcell
 DefaultAssay(Tcell) <- "RNA"
 Idents(Tcell) <- "simple8"
 Tclust <- Tcell[["simple8"]]
 
-load(file="/rds/projects/c/croftap-mapjagdata/CellDive/stromal-object")
+load(file="stromal-object")
 Idents(seurat_obj) <- "clusters2"
 DefaultAssay(seurat_obj) <- "RNA"
 FBclust <- seurat_obj[["clusters2"]]
 
-load(file="/rds/projects/c/croftap-mapjagdata/CellDive/myeloid-object")
+load(file="myeloid-object")
 Idents(myel_h) <- "named2"
 DefaultAssay(myel_h) <- "RNA"
 MYclust <- myel_h[["named2"]]
 
 # Load global object to extract pDCs
-load(file="/rds/projects/c/croftap-1003568/analysis/setup_repeat_2/mt10_20-nc-protein-10000.rdata")
-pDCclust <- as.data.frame(PBMC1$label15) 
-try <- pclust %>% filter(pclust$`PBMC1$label15`=="plasmacytoid DCs")
+load(file="global-object.rdata")
+pDCclust <- as.data.frame(PBMC1$label15s) 
+try <- pDCclust %>% filter(pDCclust$`PBMC1$label15s`=="plasmacytoid DCs")
 
 DimPlot(myel_h, group.by = "named2", cols=colurs, split.by="TYPE")
 DimPlot(Tcell, group.by = "simple8", cols=colurs, split.by="TYPE")
 DimPlot(Bcell, group.by = "label5", cols=colurs, split.by="TYPE")
 DimPlot(seurat_obj, group.by = "clusters2", cols=colurs)
 
+load(file="CyMy_clusters")
 
 #################################################################
 #################################################################
@@ -93,7 +94,7 @@ PBMC1 <- subset(PBMC1, cells = -cells_to_exclude)
 # Create plots of haematopoietic cells split by specimen type for subclusters  
 
 # B cells
-load("/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/B-cells/2401_B-cell-object")
+load("b-cell-object")
 
 ptnum <- as.data.frame(table(PBMC1$label5, PBMC1$TYPE))
 ptnum <- ptnum %>% group_by(Var2) %>% mutate(percent =  Freq*100/sum(Freq))
@@ -109,7 +110,7 @@ p1 <- ggplot(ptnum) + aes(x = Var1, y = percent, fill=Var2) + geom_bar(position=
 #################################################################
 
 # T cell / NK cell / ILCs
-load(file="/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/T-cells/2307-QC-CD4-CD8-NK_together/2307_CD4-CD8-NK-no_BC-final")
+load(file="t-cell-object")
 
 idents8 <- c("CD56-dim CD16+ NK", "CD4+ naive/central memory T", "CD8+ naive T","NK-like ILC1","Vdelta2 yd", "MAIT cells",  "IFNG+ NK","THEMIS+ IL7R+ ILC", "CD8+ GZMB+/GZMK+ memory T", "CD4+ KLRB1+ memory T",  "CD56+bright NK", "CXCL13+ TpH", "CD4+ FOXP3+ Tregs","Cycling T","CD8+ GZMK+ memory T", "Activated NK-like T")
 ptnum <- as.data.frame(table(PBMC1$simple8, PBMC1$TYPE)) 
@@ -127,9 +128,9 @@ p2 <- ggplot(ptnum) + aes(x = Var1, y = percent, fill=Var2) + geom_bar(position=
 #################################################################
 
 # Myeloid cells 
-load(file="/rds/projects/c/croftap-mapjagdata/CellDive/myeloid-object")
+load(file="myeloid-object")
 ptnum <- as.data.frame(table(myel_h$named2, myel_h$TYPE))
-load(file="/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/Global/pDC-object")
+load(file="pDC-object")
 ptnum2 <- as.data.frame(table(pDC$clusters2312, pDC$TYPE))
 
 ptnum <- rbind(ptnum,ptnum2)
@@ -154,24 +155,23 @@ grid.arrange(p1,p2,p3, nrow = 1)
 # Plot key markers of subclusters
 # T cell markers 
 
-Tell -> PBMC1
-Idents(PBMC1) <- "simple8"
+Idents(Tcell) <- "simple8"
 idents8 <- c("CD4+ naive/central memory T", "CD4+ KLRB1+ memory T", "CXCL13+ TpH", "CD4+ FOXP3+ Tregs", "2"="CD8+ naive T", "Activated NK-like T",
              "CD8+ GZMK+ memory T", "CD8+ GZMB+/GZMK+ memory T", "Cycling T", "MAIT cells", "Vdelta2 yd", "CD56+bright NK", "IFNG+ NK","CD56-dim CD16+ NK",
              "NK-like ILC1","THEMIS+ IL7R+ ILC")
-levels(PBMC1) <- rev(idents8)
-PBMC1$simple8 <- factor(PBMC1$simple8, levels=rev(idents8))
+levels(Tcell) <- rev(idents8)
+Tcell$simple8 <- factor(Tcell$simple8, levels=rev(idents8))
 
 keymm <- unlist(str_split('CD4,CCR7,IL7R,CXCL13,PDCD1,FOXP3,KLRC2,TRDV1,CD8A,GZMK,GZMB,IFNG,MKI67,TRAV1-2,TRDV2,GNLY,KLRF1,NCAM1,FCGR3A,ITGAE,RORA,BCL11B,THEMIS,TNF,CD3G,CD247,MTRNR2L12', pattern=','))
-DotPlot(PBMC1, features = keymm) + formplot
+DotPlot(Tcell, features = keymm) + formplot
 
-Idents(PBMC1) <- "TYPE"
-citesub <- subset(PBMC1, idents=c("Blood", "SF"))
+Idents(Tcell) <- "TYPE"
+citesub <- subset(Tcell, idents=c("Blood", "SF"))
 DefaultAssay(citesub) <- "Protein"
 FeaturePlot(citesub, features=c("PTPRC.1", "PTPRC.2"), min.cutoff = "q10", max.cutoff = "q90")
  
-Idents(PBMC1) <- "TYPE"
-citesub <- subset(PBMC1, idents=c("Blood", "SF"))
+Idents(Tcell) <- "TYPE"
+citesub <- subset(Tcell, idents=c("Blood", "SF"))
 DefaultAssay(citesub) <- "Protein"
 FeaturePlot(citesub, features=c("PTPRC.1", "PTPRC.2"), min.cutoff = "q10", max.cutoff = "q90")
 
@@ -179,16 +179,15 @@ FeaturePlot(citesub, features=c("PTPRC.1", "PTPRC.2"), min.cutoff = "q10", max.c
 
 # B cell markers
 
-Bcell -> PBMC1
-Idents(PBMC1) <- "label5"
-DefaultAssay(PBMC1) <- "RNA"
+Idents(Bcell) <- "label5"
+DefaultAssay(Bcell) <- "RNA"
 b.labels <- rev(c("Activated Plasma cells", "Plasma cells","GC-like Memory B",
                   "IgD+ GC-like B", "Age-associated B cells", "Memory B cells",
                   "PAX5+ Pro-B-like", "Transitional B", "IgD+IgM+ Naive B"))
-levels(PBMC1) <- b.labels
+levels(Bcell) <- b.labels
 
 togev <- unlist(str_split('FOSB,JUN,SOX5,XBP1,IGHG1,IGHG2,JCHAIN,IGHA1,NR4A1,BCL2A1,CD83,GPR183,ITGAX,FCRL4,SIGLEC10,MX1,IFITM1,COCH,CD44,EBF1,BACH2,PAX5,SOX4,MME,RAG1,TCL1A,IGHD', pattern=','))
-DotPlot(PBMC1, features = togev) + formplot & theme(legend.key.height=unit(0.2, "cm"), legend.text=element_text(size=8), legend.title=element_text(size=8))
+DotPlot(Bcell, features = togev) + formplot & theme(legend.key.height=unit(0.2, "cm"), legend.text=element_text(size=8), legend.title=element_text(size=8))
 
 #################################################################
 

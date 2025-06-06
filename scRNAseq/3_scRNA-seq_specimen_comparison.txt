@@ -269,7 +269,7 @@ qtop <- quantile(ed$value, 1-top_ed)
 
 ed %>% filter(value > qtop) -> top_ed 
 
-top_edges %>%
+top_ed %>%
 mutate('idx' = paste(Var1, Var2, sep = "_")) -> top_ed# %>%
 
 colnames(top_ed) <- c("Source", "Target", "Weight", "Id")

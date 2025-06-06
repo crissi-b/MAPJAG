@@ -126,7 +126,7 @@ check <- subset(ilc, subset = percent.mt > 20)
 #################################################################
 
 # subset separately and merge
-for (i in length(data.10x)) {
+for (i in 1:length(data.10x)) {
   ilc.obj <- ilc.barcode[ilc.barcode$samnum == i, 1]
   ilc <- data.10x[[i]][,colnames(data.10x[[i]]) %in% ilc.obj]
   ilc <- subset(x=ilc, subset = percent.mt < 20)

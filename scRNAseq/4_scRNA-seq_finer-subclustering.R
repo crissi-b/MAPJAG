@@ -38,7 +38,7 @@ colurs <- c(brewer.pal(8, "Dark2"), brewer.pal(8, "Set2"), brewer.pal(9, "Set1")
 
 
 # select out T cells / NK cells / ILC- the cycling cluster strongly expressed CD8
-load(file="/rds/projects/c/croftap-1003568/analysis/setup_repeat_2/mt10_20-nc-protein-10000.rdata")
+load(file="global-object.rdata")
 
 DimPlot(PBMC1, group.by = "integrated_snn_res.0.15", label = T, repel=T) & NoLegend()
 FeaturePlot(PBMC1, features=c("CD3G", "CD247", "NKG7", "CD8", "TRDC"))
@@ -61,7 +61,7 @@ DimPlot(Tcell, group.by = "integrated_snn_res.3", label = T, repel=T) & NoLegend
 #################################################################
 
 # Extract cycling myeloid cells from the cycling cluster
-load(file="/rds/projects/c/croftap-mapjagdata/MAPJAGv2/2306/T-cells/2307-QC-CD4-CD8-NK_together/2306-QC-batch_correct/CD8-CD4-T-NK-1")
+load(file="t-cell-object")
 
 # Check expression of other cell types
 DefaultAssay(Tcell) <- "RNA"
@@ -196,7 +196,7 @@ FeaturePlot(Tcell, features = "TRM1", split.by = "TYPE",
 # Subclustering B cells
 
 #select out B and plasma from the global object
-#load(file="/rds/projects/c/croftap-1003568/analysis/setup_repeat_2/mt10_20-nc-protein-10000.rdata")
+#load(file="global-object.rdata")
 Idents(PBMC1) <- "integrated_snn_res.0.15"
 Bcell <- subset(PBMC1, idents= c(7, 11))
 

@@ -25,6 +25,162 @@ colurs <- c(brewer.pal(8, "Dark2"), brewer.pal(8, "Set2"), brewer.pal(9, "Set1")
 #################################################################
 
 # Stromal clustering
+Idents(PBMC1)<-'cm_global'
+stroma <-subset(x = PBMC1, idents = c("fibs", "pericytes", "Endo_cells", "lymphatic")   )
+stroma <- PBMC1[,grepl("fibs|pericytes|Endo_cells|lymphatic", PBMC1$cm_global, ignore.case=TRUE)]
+
+
+stroma <- stroma %>%
+    ScaleData() %>%
+    FindVariableFeatures() %>%
+    RunPCA(verbose = FALSE) %>%
+    RunUMAP(dims = 1:30, verbose = FALSE)
+DimPlot(stroma)
+
+stroma<-FindNeighbors(stroma, dims=1:30)
+stroma<-FindClusters(stroma, resolution = c(0.01, 0.05, 0.1, 0.2))
+stroma<-FindClusters(stroma, resolution = c(0.15))
+stroma<-FindClusters(stroma, resolution = c(0.12))
+
+cols <- ArchR::paletteDiscrete(stroma@meta.data[, "RNA_snn_res.0.12"])
+
+
+DimPlot(stroma, group.by = "RNA_snn_res.0.12", label = T, cols=cols)
+DimPlot(stroma, group.by = "orig.ident")
+FeaturePlot(stroma, features=c("APOD", "APOE", "APOC1", "LYZ"))
+FeaturePlot(stroma, features=c("PDGFRA", "COL1A1"))
+
+
+Idents(stroma)<-'RNA_snn_res.0.12'
+straom_markers<-FindAllMarkers(stroma, only.pos = T, logfc.threshold = 1)
+
+FeaturePlot(stroma, features = c("PDGFRA", "COL1A1", "THY1", "CD248"))
+DimPlot(stroma, group.by = "orig.ident")
+table(stroma$orig.ident)
+
+Idents(stroma)<-'RNA_snn_res.0.12'
+levels(stroma)
+
+stroma_clean <-subset(x = stroma, idents = c("0" ,"1", "2", "3", "5", "6", "8")   )
+
+
+stroma_clean <- stroma_clean %>%
+    ScaleData() %>%
+    FindVariableFeatures() %>%
+    RunPCA(verbose = FALSE) %>%
+    RunUMAP(dims = 1:30, verbose = FALSE)
+DimPlot(stroma_clean)
+
+FeaturePlot(stroma_clean, features=c("RUNX1", "SOX5", "CDH11"))
+
+FeaturePlot(stroma_clean, features = c("PDGFRA", "COL1A1", "THY1", "CD248"))
+
+stroma_clean<-FindNeighbors(stroma_clean, dims=1:30)
+stroma_clean<-FindClusters(stroma_clean, resolution = c(0.01, 0.05, 0.1, 0.2))
+
+Idents(stroma_clean)<-'orig.ident'
+DimPlot(stroma_clean, split.by = "orig.ident", label = F)
+
+stroma_clean<-CellSelector(p1, stroma_clean, ident = "remove")
+levels(stroma_clean)
+
+
+stroma_clean <-subset(x = stroma_clean, idents = c("0" ,"1", "2", "3", "5", "6")   )
+
+
+stroma_clean <- stroma_clean %>%
+    ScaleData() %>%
+    FindVariableFeatures() %>%
+    RunPCA(verbose = FALSE) %>%
+    RunUMAP(dims = 1:30, verbose = FALSE)
+DimPlot(stroma_clean, group.by = "orig.ident")
+
+FeaturePlot(stroma_clean, features=c("SOX5", "CDH11"))
+
+FeaturePlot(stroma_clean, features = c("PDGFRA", "COL1A1", "THY1", "CD248"))
+
+stroma_clean_h<-RunHarmony.Seurat_CM(stroma_clean, group.by.vars = "orig.ident")
+stroma_clean_h<-RunUMAP(stroma_clean_h, reduction="harmony", dims=1:30)
+DimPlot(stroma_clean_h, group.by = "orig.ident")
+FeaturePlot(stroma_clean_h, features=c("RUNX1", "SOX5", "CDH11"))
+FeaturePlot(stroma_clean_h, features = c("PDGFRA", "COL1A1", "THY1", "MKI67"))
+
+pt <- table(stroma_clean$orig.ident , stroma_clean$RNA_snn_res.0.2)
+pt <- as.data.frame(pt)
+pt$Var1 <- as.character(pt$Var1)
+
+ggplot(pt, aes(x = Var2, y = Freq, fill = Var1)) +
+  theme_bw(base_size = 15) +
+  geom_col(position = "fill", width = 0.5) +
+  xlab("Sample") +
+  ylab("Proportion") +
+  theme(legend.title = element_blank()) +RotatedAxis()
+
+stroma_clean_h<-FindNeighbors(stroma_clean_h, dims=1:30, reduction="harmony")
+stroma_clean_h<-FindClusters(stroma_clean_h, resolution = c(0.01, 0.05, 0.1, 0.2, 0.3))
+stroma_clean_h<-FindClusters(stroma_clean_h, resolution = c(0.4))
+stroma_clean_h<-FindClusters(stroma_clean_h, resolution = c(0.5, 0.6))
+DimPlot(stroma_clean_h, group.by = "RNA_snn_res.0.5", label = T)
+FeaturePlot(stroma_clean_h, features = c("PRG4", "TSPAN15"))
+FeaturePlot(stroma_clean_h, features = c("CD34", "PI16"))
+FeaturePlot(stroma_clean_h, features = c("POSTN", "COMP"))
+FeaturePlot(stroma_clean_h, features = c("SFRP1", "CXCL12"))
+
+Idents(stroma_clean_h)<-'RNA_snn_res.0.5'
+markers_stroma_clean_h<-FindAllMarkers(stroma_clean_h, only.pos = T, logfc.threshold = 1)
+
+cols <- ArchR::paletteDiscrete(stroma_clean_h@meta.data[, "cm_global"])
+DimPlot(stroma_clean_h, group.by = "cm_global", label = F, cols=cols)
+
+
+ggplot(stroma_clean_h@meta.data, aes(x=orig.ident, fill=orig.ident)) + geom_bar()+ theme_ArchR() +RotatedAxis()
+       
+ggplot(stroma_clean_h@meta.data, aes(x=cm_global, fill=cm_global)) + geom_bar()+ theme_ArchR()
+
+ggplot(stroma_clean_h@meta.data, aes(x=cm_global, fill=orig.ident)) + geom_bar(position = "fill")+ theme_ArchR()
+
+
+cols <- ArchR::paletteDiscrete(stroma_clean_h@meta.data[, "RNA_snn_res.0.5"])
+DimPlot(stroma_clean_h, group.by = "RNA_snn_res.0.5", label = T, cols=cols)
+
+stroma_clean_h$clusters<-stroma_clean_h$RNA_snn_res.0.5
+
+current.sample.ids <- c( "0" , "1" , "2" , "3",  "4" , "5" , "6",  "7" , "8" , "9" , "10", "11", "12")
+new.sample.ids <- c( "Venous" , "CD34/MFAP5" , "POSTN" , "SFRP/CXCL12",  "Pericytes" , "LL" , "CXCL14",  "SOX5_CDH11" , "KDR_Arterial" , "FLi1_Callilary" , "MMPs", "Lymphatic", "Prolif")
+
+stroma_clean_h@meta.data[["clusters"]] <- plyr::mapvalues(x = stroma_clean_h@meta.data[["clusters"]], from = current.sample.ids, to = new.sample.ids)
+cols <- ArchR::paletteDiscrete(stroma_clean_h@meta.data[, "clusters"])
+DimPlot(stroma_clean_h, group.by = "clusters", cols=cols, label = T, repel = T, label.box =T) +NoAxes()+NoLegend()
+
+library(gsfisher)
+#repeat but with numbered clusters, re run findall markers agter reordering idents so that they are in order!
+Idents(stroma_clean_h)<-'clusters'
+levels(stroma_clean_h)
+
+bg_genes<-unique(markers_stroma_clean_h$gene)
+
+annotation_gs <- fetchAnnotation(species="hs", ensembl_version=NULL, ensembl_host=NULL)
+
+index <- match(markers_stroma_clean_h$gene, annotation_gs$gene_name)
+markers_stroma_clean_h$ensembl <- annotation_gs$ensembl_id[index]
+
+FilteredGeneID <- bg_genes
+index <- match(FilteredGeneID, annotation_gs$gene_name)
+ensemblUni <- annotation_gs$ensembl_id[index]
+
+seurat_obj.res <- markers_stroma_clean_h
+seurat_obj <- stroma_clean_h
+seurat_obj.res <- seurat_obj.res[!is.na(seurat_obj.res$ensembl),]
+ensemblUni <- na.omit(ensemblUni)
+
+go.results <- runGO.all(results=seurat_obj.res,
+                  background_ids = ensemblUni, gene_id_col="ensembl", gene_id_type="ensembl", sample_col="cluster", p_col="p_val_adj", p_threshold=0.05,
+                  species = "hs")
+go.results <- filterGenesets(go.results)
+go.results.top <- go.results %>% group_by(cluster) %>% top_n(n=2, -p.val)
+sampleEnrichmentDotplot(go.results.top, selection_col = "description", selected_genesets = unique(go.results.top$description), sample_id_col = "cluster", fill_var = "odds.ratio", maxl=50, title="Go term",rotate_sample_labels = T,fill_colors = c("#d9f0a3", "#41ab5d", "#49006a"))
+
+
 
 
 #################################################################
@@ -32,6 +188,216 @@ colurs <- c(brewer.pal(8, "Dark2"), brewer.pal(8, "Set2"), brewer.pal(9, "Set1")
 
 
 # Myeloid clustering
+Idents(PBMC1)<-'global1'
+DimPlot(PBMC1)
+myel <-subset(x = PBMC1, idents = c("Myeloid")   )
+
+
+myel <- myel %>%
+    ScaleData() %>%
+    FindVariableFeatures() %>%
+    RunPCA(verbose = FALSE) %>%
+    RunUMAP(dims = 1:30, verbose = FALSE)
+
+myel<-RunUMAP(myel, dims=1:30,  verbose = FALSE)
+  
+Idents(myel)<-'TYPE'
+DimPlot(myel, group.by="TYPE")
+DimPlot(myel, group.by="orig.ident")
+DimPlot(myel, split.by="TYPE")
+
+
+Idents(myel)<-'patient'
+
+DimPlot(myel, group.by="patient")
+
+myel<-FindNeighbors(myel, dims=1:30)
+myel<-FindClusters(myel, resolution = c(0.01, 0.05, 0.1, 0.2))
+myel<-FindClusters(myel, resolution = c(0.15))
+myel<-FindClusters(myel, resolution = c(0.12))
+
+DimPlot(myel, group.by = "RNA_snn_res.0.12", label = T)
+DimPlot(myel, group.by = "RNA_snn_res.0.2", label = T)
+
+Idents(myel)<-"T_clonotype_id"
+DimPlot(myel)+NoLegend()
+
+Idents(myel)<-"B_clonotype_id"
+DimPlot(myel)+NoLegend()
+
+
+DefaultAssay(myel)<-'RNA'
+Idents(myel)<-'RNA_snn_res.0.2'
+Allmarkers_res0.2<-FindAllMarkers(myel, only.pos = T, logfc.threshold = 0.5)
+
+Idents(myel)<-'RNA_snn_res.0.2'
+myel <-subset(x = myel, idents = c("0" , "1" , "2",  "3" , "4" , "5",  "6" , "8" , "9" , "10" ,"11", "12")   )
+
+
+myel <- myel %>%
+    ScaleData() %>%
+    FindVariableFeatures() %>%
+    RunPCA(verbose = FALSE) %>%
+    RunUMAP(dims = 1:30, verbose = FALSE)
+
+myel_h<-RunHarmony.Seurat_CM(myel, group.by.vars = "orig.ident")
+myel_h<-RunUMAP(myel_h, reduction="harmony", dims=1:30)
+
+DimPlot(myel_h, group.by = "orig.ident")+NoAxes()
+DimPlot(myel_h, group.by = "TYPE")+NoAxes()
+
+myel_h<-FindNeighbors(myel_h, reduction = "harmony", dims=1:30)
+myel_h<-FindClusters(myel_h, resolution = c(0.05, 0.1, 0.2))
+DimPlot(myel_h, group.by = "RNA_snn_res.0.05")+NoAxes()
+DimPlot(myel_h, group.by = "RNA_snn_res.0.1")+NoAxes()
+DimPlot(myel_h, group.by = "RNA_snn_res.0.2")+NoAxes()
+myel_h<-FindClusters(myel_h, resolution = c(0.3, 0.5, 0.4))
+DimPlot(myel_h, group.by = "RNA_snn_res.0.3")+NoAxes()
+DimPlot(myel_h, group.by = "RNA_snn_res.0.4")+NoAxes()
+DimPlot(myel_h, group.by = "RNA_snn_res.0.5")+NoAxes()
+
+myel_h_type<-RunHarmony.Seurat_CM(myel, group.by.vars = "TYPE")
+myel_h_type<-RunUMAP(myel_h_type, reduction="harmony", dims=1:30)
+
+DimPlot(myel_h_type, group.by = "orig.ident")+NoAxes()
+DimPlot(myel_h_type, group.by = "TYPE")+NoAxes()
+
+FeaturePlot(myel_h_type, features = c("MERTK", "LYVE1"))
+
+myel_h_type<-FindNeighbors(myel_h_type, reduction = "harmony", dims=1:30)
+myel_h_type<-FindClusters(myel_h_type, resolution = c(0.05, 0.1, 0.2))
+DimPlot(myel_h_type, group.by = "RNA_snn_res.0.05")+NoAxes()
+DimPlot(myel_h_type, group.by = "RNA_snn_res.0.1")+NoAxes()
+DimPlot(myel_h_type, group.by = "RNA_snn_res.0.2")+NoAxes()
+myel_h_type<-FindClusters(myel_h_type, resolution = c(0.3,  0.4))
+DimPlot(myel_h_type, group.by = "RNA_snn_res.0.3")+NoAxes()
+DimPlot(myel_h_type, group.by = "RNA_snn_res.0.4")+NoAxes()
+
+Idents(myel_h_type)<-'TYPE'
+DimPlot(myel_h_type, split.by = "TYPE")+NoAxes()
+
+
+
+pt <- table(myel_h_type$orig.ident, myel_h_type$RNA_snn_res.0.3)
+pt <- as.data.frame(pt)
+pt<-pt[!pt$Var2 == "stromal_contam", ]
+pt$Var1 <- as.character(pt$Var1)
+
+ggplot(pt, aes(x = Var2, y = Freq, fill = Var1)) +
+  theme_bw(base_size = 15) +
+  geom_col(position = "fill", width = 0.5) +
+  xlab("Sample") +
+  ylab("Proportion") +
+  theme(legend.title = element_blank())+RotatedAxis()
+
+pt <- table(myel_hs$orig.ident, myel_hs$named)
+pt <- as.data.frame(pt)
+pt<-pt[!pt$Var2 == "stromal_contam", ]
+pt$Var1 <- as.character(pt$Var1)
+
+ggplot(pt, aes(x = Var2, y = Freq, fill = Var1)) +
+  theme_bw(base_size = 15) +
+  geom_col(position = "fill", width = 0.5) +
+  xlab("Sample") +
+  ylab("Proportion") +
+  theme(legend.title = element_blank())+RotatedAxis()
+
+myel_h_type_orig<-RunHarmony.Seurat_CM(myel, group.by.vars = c("TYPE", "orig.ident"))
+myel_h_type_orig<-RunUMAP(myel_h_type_orig, reduction="harmony", dims=1:30)
+
+DimPlot(myel_h_type_orig, group.by = "orig.ident")+NoAxes()
+DimPlot(myel_h_type_orig, group.by = "TYPE")+NoAxes()
+
+Idents(myel_h_type_orig)<-'TYPE'
+DimPlot(myel_h_type_orig, split.by = "TYPE")+NoAxes()
+
+
+FeaturePlot(myel_h_type_orig, features = c("MERTK", "LYVE1"))
+
+myel_h_type_orig<-FindNeighbors(myel_h_type_orig, reduction = "harmony", dims=1:30)
+myel_h_type_orig<-FindClusters(myel_h_type_orig, resolution = c(0.05, 0.1, 0.2))
+DimPlot(myel_h_type_orig, group.by = "RNA_snn_res.0.05")+NoAxes()
+DimPlot(myel_h_type_orig, group.by = "RNA_snn_res.0.1")+NoAxes()
+DimPlot(myel_h_type_orig, group.by = "RNA_snn_res.0.2")+NoAxes()
+myel_h_type_orig<-FindClusters(myel_h_type_orig, resolution = c(0.3,  0.4))
+DimPlot(myel_h_type_orig, group.by = "RNA_snn_res.0.3", label=T)+NoAxes()
+
+myel_h_type_orig<-FindClusters(myel_h_type_orig, resolution = c(0.6,  0.7))
+
+DimPlot(myel_h_type_orig, group.by = "RNA_snn_res.0.7", label=T)+NoAxes()
+
+pt <- table(myel_h_type_orig$TYPE, myel_h_type_orig$RNA_snn_res.0.3)
+pt <- as.data.frame(pt)
+pt<-pt[!pt$Var2 == "stromal_contam", ]
+pt$Var1 <- as.character(pt$Var1)
+
+ggplot(pt, aes(x = Var2, y = Freq, fill = Var1)) +
+  theme_bw(base_size = 15) +
+  geom_col(position = "fill", width = 0.5) +
+  xlab("Sample") +
+  ylab("Proportion") +
+  theme(legend.title = element_blank())+RotatedAxis()
+
+Idents(myel_h)<-'RNA_snn_res.0.3'
+markers_res0.3<-FindAllMarkers(myel_h, only.pos = T, logfc.threshold = 1)
+write.csv(markers_res0.3, "/rds/projects/c/croftap-mapjagdata/MAPJAGv1/step3_subclusters/Chris/afterSoupX_stroma/markers_res0.3.csv")
+
+Idents(myel_h)<-'TYPE'
+DE_across_all_tissues<-FindAllMarkers(myel_h, only.pos = T, logfc.threshold = 1)
+write.csv(DE_across_all_tissues, "/rds/projects/c/croftap-mapjagdata/MAPJAGv1/step3_subclusters/Chris/afterSoupX_stroma/Myel_DE_across_all_tissues.csv")
+
+myel_h$named <- myel_h@meta.data[["RNA_snn_res.0.3"]]
+Idents(myel_h) <- 'named'
+levels(myel_h)
+current.sample.ids <- c("0" , "1" , "10", "2" , "3" , "4" , "5", "6",  "7" , "8" , "9" )
+new.sample.ids <- c("SPP1_FABP5",  "S1008A_FCN1" , "S1008A_FCN1", "MERTK_SELEOP",  "Il1B" , "DC_CD1C" , "NEAT1_SLC8A1",  "DC_CLEC9A",  "DC_LAMP3",  "DC_TCF7L2" , "stromal_contam" )
+
+myel_h@meta.data[["named"]] <- plyr::mapvalues(x = myel_h@meta.data[["named"]], from = current.sample.ids, to = new.sample.ids)
+DimPlot(myel_h, group.by = "named", label = T)+NoAxes()
+Idents(myel_h) <- 'named'
+levels(myel_h)
+
+myel_hs <-subset(x = myel_h, idents = c("SPP1_FABP5",  "S1008A_FCN1" , "S1008A_FCN1", "MERTK_SELEOP",  "Il1B" , "DC_CD1C" , "NEAT1_SLC8A1",  "DC_CLEC9A",  "DC_LAMP3",  "DC_TCF7L2"  )   )
+
+
+myel_hs <- myel_hs %>%
+    ScaleData() %>%
+    FindVariableFeatures() %>%
+    RunPCA(verbose = FALSE) 
+
+
+myel_hs<-RunHarmony.Seurat_CM(myel_hs, group.by.vars = "orig.ident")
+myel_hs<-RunUMAP(myel_hs, reduction="harmony", dims=1:30)
+DimPlot(myel_hs, group.by = "named", label = T)+NoAxes()
+
+Idents(myel_hs)<-'TYPE'
+DimPlot(myel_hs,group.by = "orig.ident", label = F)+NoAxes()
+
+markers_res0_3_f=markers_res0_3[!markers_res0_3$cluster == "9",]
+library(gsfisher)
+
+bg_genes<-unique(markers_res0_3_f$gene)
+
+#annotation_gs <- fetchAnnotation(species="hs", ensembl_version=NULL, ensembl_host=NULL)
+
+index <- match(markers_res0_3_f$gene, annotation_gs$gene_name)
+markers_res0_3_f$ensembl <- annotation_gs$ensembl_id[index]
+
+FilteredGeneID <- bg_genes
+index <- match(FilteredGeneID, annotation_gs$gene_name)
+ensemblUni <- annotation_gs$ensembl_id[index]
+markers_res0_3_f<-na.omit(markers_res0_3_f)
+ensemblUni<-na.omit(ensemblUni)
+
+
+go.results <- runGO.all(results=markers_res0_3_f,
+                  background_ids = ensemblUni, gene_id_col="ensembl", gene_id_type="ensembl", sample_col="cluster", p_col="p_val_adj", p_threshold=0.05,
+                  species = "hs")
+go.results <- filterGenesets(go.results)
+go.results.top <- go.results %>% group_by(cluster) %>% top_n(n=2, -p.val)
+sampleEnrichmentDotplot(go.results.top, selection_col = "description", selected_genesets = unique(go.results.top$description), sample_id_col = "cluster", fill_var = "odds.ratio", maxl=50, title="Go term",rotate_sample_labels = T,fill_colors = c("#d9f0a3", "#41ab5d", "#49006a"))
+
+
 
 #################################################################
 #################################################################
